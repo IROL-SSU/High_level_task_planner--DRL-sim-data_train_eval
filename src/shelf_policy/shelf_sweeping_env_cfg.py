@@ -23,7 +23,7 @@ from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.sim.schemas.schemas_cfg import MassPropertiesCfg
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 
-from . import mdp
+import mdp
 
 ##
 # Scene definition

@@ -23,7 +23,7 @@ from omni.isaac.lab.sim.schemas.schemas_cfg import MassPropertiesCfg
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
-import omni.isaac.lab_tasks.manager_based.manipulation.shelf.mdp as mdp
+import mdp
 
 ##
 # Scene definition

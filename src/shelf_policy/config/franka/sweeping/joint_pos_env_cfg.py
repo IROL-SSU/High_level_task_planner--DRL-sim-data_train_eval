@@ -13,7 +13,7 @@ from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.sim.schemas.schemas_cfg import MassPropertiesCfg
 
 from omni.isaac.lab_tasks.manager_based.manipulation.lift import mdp
-from omni.isaac.lab_tasks.manager_based.manipulation.shelf.shelf_sweeping_env_cfg import ShelfSweepingEnvCfg
+from shelf_sweeping_env_cfg import ShelfSweepingEnvCfg
 import torch
 ##
 # Pre-defined configs

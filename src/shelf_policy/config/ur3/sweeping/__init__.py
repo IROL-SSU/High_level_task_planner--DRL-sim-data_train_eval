@@ -2,6 +2,7 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
+
 import gymnasium as gym
 import os
 
@@ -14,7 +15,6 @@ from . import agents, joint_pos_env_cfg, ik_abs_env_cfg
 ##
 # Joint Position Control
 ##
-
 gym.register(
     id="Isaac-Shelf-UR3-Sweep-v0",
     entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",

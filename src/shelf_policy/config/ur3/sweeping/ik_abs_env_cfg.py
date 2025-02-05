@@ -13,7 +13,7 @@ from . import joint_pos_env_cfg
 # Pre-defined configs
 ##
 
-from omni.isaac.lab_assets import UR3_CFG
+from asset.ur3 import UR3_CFG
 
 
 @configclass
