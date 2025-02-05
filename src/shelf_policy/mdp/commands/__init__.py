@@ -1,0 +1,2 @@
+from .commands_cfg import ObjectGoalPosCommandCfg, EEGoalPosCommandCfg
+from .position_command import ObjectGoalPosCommand, EEGoalPosCommand
