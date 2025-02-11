@@ -33,20 +33,17 @@ import mdp as mdp
 @configclass
 class ReachSceneCfg(InteractiveSceneCfg):
     """Configuration for the scene with a robotic arm."""
-
     # world
     ground = AssetBaseCfg(
         prim_path="/World/ground",
         spawn=sim_utils.GroundPlaneCfg(),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
     )
-    
     # lights
     light = AssetBaseCfg(
         prim_path="/World/light",
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
     )
-
     mount = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Mount",
         spawn=sim_utils.UsdFileCfg(
@@ -54,11 +51,8 @@ class ReachSceneCfg(InteractiveSceneCfg):
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, 0.79505), rot=(1.0, 0.0, 0.0, 0.0),),
     )
-    
     # robots
     robot: ArticulationCfg = MISSING
-
-    
     # end-effector sensor: will be populated by agent env cfg
     ee_frame: FrameTransformerCfg = MISSING
 
@@ -73,6 +67,21 @@ class ReachSceneCfg(InteractiveSceneCfg):
 @configclass
 class CommandsCfg:
     """Command terms for the MDP."""
+    ee_pose = mdp.UniformPoseCommandCfg(
+        asset_name="robot",
+        body_name=MISSING,
+        resampling_time_range=(4.0, 4.0),
+        debug_vis=True,
+        ranges=mdp.UniformPoseCommandCfg.Ranges(
+            pos_x=(0.35, 0.65),
+            pos_y=(-0.2, 0.2),
+            pos_z=(0.15, 0.5),
+            roll=(0.0, 0.0),
+            pitch=MISSING,  # depends on end-effector axis
+            yaw=(-3.14, 3.14),
+        ),
+    )
+    
 
 @configclass
 class ActionsCfg:
@@ -87,7 +96,6 @@ class ObservationsCfg:
     @configclass
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
-
         # observation terms (order preserved)
         joint_pos = ObsTerm(func=mdp.rl_joint_pos_rel)
         joint_vel = ObsTerm(func=mdp.rl_joint_vel_rel)
@@ -125,13 +133,10 @@ class RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     
-
-
 @configclass
 class TerminationsCfg:
     """Termination terms for the MDP."""
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-
 
 
 @configclass
@@ -146,18 +151,16 @@ class CurriculumCfg:
         func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
     )
 
-
 ##
 # Environment configuration
 ##
-
 
 @configclass
 class ReachEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the reach end-effector pose tracking environment."""
 
     # Scene settings
-    scene: ShelfSceneCfg = ShelfSceneCfg(num_envs=6144, env_spacing=2.5)
+    scene: ReachSceneCfg = ReachSceneCfg(num_envs=6144, env_spacing=2.5)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
