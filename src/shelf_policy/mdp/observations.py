@@ -102,7 +102,7 @@ def ee_pos_r(env: ManagerBasedRLEnv) -> torch.Tensor:
 
     # print(f"ee_pos_w: {ee_tf_data.target_pos_w[..., 0, :]}")
     print(f"ee_pos_r: {ee_pos_b}")
-    print(f"ee_quat_b: {ee_quat_b}")
+    # print(f"ee_quat_b: {ee_quat_b}")
 
     return ee_pos_b
 
@@ -114,7 +114,7 @@ def ee_quat(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Tens
     ee_tf_data: FrameTransformerData = env.scene["ee_frame"].data
     ee_quat = ee_tf_data.target_quat_w[..., 0, :]
 
-    # print(f"ee_quat:{ee_quat}")
+    print(f"ee_quat:{ee_quat}")
     # make first element of quaternion positive
     return quat_unique(ee_quat) if make_quat_unique else ee_quat
 

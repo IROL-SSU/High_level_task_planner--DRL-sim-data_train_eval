@@ -19,7 +19,7 @@ import torch
 # Pre-defined configs
 ##
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
-from asset.ur3 import UR3_CFG
+from asset.ur3_robotitq import UR3_Robotiq_CFG
 
 
 @configclass
@@ -28,7 +28,7 @@ class UR3ShelfEnvCfg(ShelfEnvCfg):
         # post init of parent
         super().__post_init__()
 
-        self.scene.robot = UR3_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = UR3_Robotiq_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
        
 
         # Set actions for the specific robot type
@@ -60,7 +60,7 @@ class UR3ShelfEnvCfg(ShelfEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
                     name="ee_tcp",
                     offset=OffsetCfg(pos=(0.0, 0.0, 0.14),),
                 ),
@@ -73,14 +73,14 @@ class UR3ShelfEnvCfg(ShelfEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
                     name="l_finger",
                     offset=OffsetCfg(
                         pos=(0.0, -0.07, 0.11),
                     ),
                 ),
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
                     name="r_finger",
                     offset=OffsetCfg(
                         pos=(0.0, 0.07, 0.11),
@@ -95,7 +95,7 @@ class UR3ShelfEnvCfg(ShelfEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
                     name="wrist",
                     offset=OffsetCfg(
                         pos=(0.0, 0.0, -0.14),

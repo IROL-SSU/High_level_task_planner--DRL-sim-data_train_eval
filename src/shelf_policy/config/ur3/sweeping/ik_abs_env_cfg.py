@@ -13,7 +13,7 @@ from . import joint_pos_env_cfg
 # Pre-defined configs
 ##
 
-from asset.ur3 import UR3_CFG
+from asset.ur3_robotitq import UR3_Robotiq_CFG
 
 
 @configclass
@@ -23,7 +23,7 @@ class UR3ShelfEnvCfg(joint_pos_env_cfg.UR3ShelfEnvCfg):
         super().__post_init__()
 
         # Set the robot config
-        self.scene.robot = UR3_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = UR3_Robotiq_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # Set actions for the specific robot type (UR5e)
         self.actions.arm_action = DifferentialInverseKinematicsActionCfg(

@@ -114,7 +114,7 @@ class UR5eShelfGraspingEnvCfg(ShelfGraspingEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
                     name="end_effector",
                     offset=OffsetCfg(
                         pos=[0.0, 0.0, 0.146],
@@ -129,7 +129,7 @@ class UR5eShelfGraspingEnvCfg(ShelfGraspingEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
                     name="wrist",
                     offset=OffsetCfg(
                         pos=(0.0, 0.0, -0.15),
