@@ -278,4 +278,4 @@ AMENT_IGNORE
 # End of https://www.toptal.com/developers/gitignore/api/python,c++,ros,ros2
 
 
-*.pyc
+*.cpython-310.pyc
