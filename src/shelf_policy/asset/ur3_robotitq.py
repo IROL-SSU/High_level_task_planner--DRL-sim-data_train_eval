@@ -21,7 +21,7 @@ from omni.isaac.lab.assets.articulation import ArticulationCfg
 ##
 
 
-UR3_CFG = ArticulationCfg(
+UR3_Robotiq_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path=f"omniverse://localhost/Library/Shelf/Robots/UR3/ur3_2f85.usd",
         rigid_props=sim_utils.RigidBodyPropertiesCfg(

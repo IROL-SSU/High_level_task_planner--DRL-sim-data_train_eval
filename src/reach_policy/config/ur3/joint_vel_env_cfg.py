@@ -15,6 +15,7 @@ from omni.isaac.lab.sim.schemas.schemas_cfg import MassPropertiesCfg
 from omni.isaac.lab_tasks.manager_based.manipulation.lift import mdp
 from reach_policy.reach_cfg import ReachEnvCfg
 import torch
+import math
 
 
 
@@ -22,7 +23,7 @@ import torch
 # Pre-defined configs
 ##
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
-from asset.ur3 import UR3_CFG
+from reach_policy.asset.ur3 import UR3_CFG
 
 
 @configclass
@@ -33,7 +34,7 @@ class UR3ReachEnvCfg(ReachEnvCfg):
         self.scene.robot = UR3_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
        
         # Set actions for the specific robot type
-        self.actions.arm_action = mdp.JointPositionActionCfg(
+        self.actions.arm_action = mdp.JointVelocityActionCfg(
             asset_name="robot", 
             joint_names=["shoulder_pan_joint",
                         "shoulder_lift_joint",
@@ -43,12 +44,6 @@ class UR3ReachEnvCfg(ReachEnvCfg):
                         "wrist_3_joint"], 
             scale=0.5, 
             use_default_offset=True
-        )
-        self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
-            asset_name="robot",
-            joint_names=["left_outer_knuckle_joint","right_outer_knuckle_joint"],
-            open_command_expr={"left_outer_knuckle_joint": 0.0,"right_outer_knuckle_joint": 0.0},
-            close_command_expr={"left_outer_knuckle_joint":0.0,"right_outer_knuckle_joint": 0.5},
         )
         
         # Listens to the required transforms
@@ -61,91 +56,20 @@ class UR3ReachEnvCfg(ReachEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
-                    name="ee_tcp",
-                    offset=OffsetCfg(pos=(0.0, 0.0, 0.14),),
+                    prim_path="{ENV_REGEX_NS}/Robot/tool0",
+                    name="ee",
+                    offset=OffsetCfg(pos=(0.0, 0.0, 0.0),),
                 ),
             ],
         )
         
-        self.scene.finger_frame = FrameTransformerCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/base_link",
-            debug_vis=True,
-            visualizer_cfg=marker_cfg,
-            target_frames=[
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
-                    name="l_finger",
-                    offset=OffsetCfg(
-                        pos=(0.0, -0.07, 0.11),
-                    ),
-                ),
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
-                    name="r_finger",
-                    offset=OffsetCfg(
-                        pos=(0.0, 0.07, 0.11),
-                    ),
-                ),
-            ],
-        )
+        self.commands.ee_pose.body_name = "tool0"
+        self.commands.ee_pose.ranges.pitch = (math.pi / 2, math.pi / 2)
         
-        self.scene.wrist_frame = FrameTransformerCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/base_link",
-            debug_vis=True,
-            visualizer_cfg=marker_cfg,
-            target_frames=[
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
-                    name="wrist",
-                    offset=OffsetCfg(
-                        pos=(0.0, 0.0, -0.14),
-                    ),
-                ),
-            ],
-        )
-        
-        # Set Cup as object
-        self.scene.cup = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/Cup",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.55, 0.0, 0.98], rot=[1.0, 0.0, 0.0, 0.0]),
-            spawn=UsdFileCfg(
-                usd_path=f"omniverse://localhost/Library/Shelf/Object/SM_Cup_empty.usd",
-                scale=(0.9, 0.9, 1.0),
-                rigid_props=RigidBodyPropertiesCfg(
-                    solver_position_iteration_count=16,
-                    solver_velocity_iteration_count=1,
-                    max_angular_velocity=1000.0,
-                    max_linear_velocity=1000.0,
-                    max_depenetration_velocity=5.0,
-                    disable_gravity=False,
-                ),
-                mass_props=MassPropertiesCfg(mass=0.3),
-            ),
-        )
-    
-        # Set Cube as object
-        self.scene.cup2 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/Cup2",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.7, 0.0, 0.98], rot=[1, 0, 0, 0]),
-            spawn=UsdFileCfg(
-                usd_path=f"omniverse://localhost/Library/Shelf/Object/SM_PlasticCup.usd",
-                scale=(1.0, 1.0, 1.0),
-                rigid_props=RigidBodyPropertiesCfg(
-                    solver_position_iteration_count=16,
-                    solver_velocity_iteration_count=1,
-                    max_angular_velocity=1000.0,
-                    max_linear_velocity=1000.0,
-                    max_depenetration_velocity=5.0,
-                    disable_gravity=False,
-                ),
-                mass_props=MassPropertiesCfg(mass=0.3),
-            ),
-        )
         
 
 @configclass
-class UR3ShelfEnvCfg_PLAY(UR3ShelfEnvCfg):
+class UR3ReachEnvCfg_PLAY(UR3ReachEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()

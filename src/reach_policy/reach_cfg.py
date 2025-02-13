@@ -23,7 +23,9 @@ from omni.isaac.lab.sim.schemas.schemas_cfg import MassPropertiesCfg
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
-import mdp as mdp
+import reach_policy.mdp as mdp
+
+
 
 ##
 # Scene definition
@@ -97,10 +99,10 @@ class ObservationsCfg:
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
         # observation terms (order preserved)
-        joint_pos = ObsTerm(func=mdp.rl_joint_pos_rel)
-        joint_vel = ObsTerm(func=mdp.rl_joint_vel_rel)
-        ee_pos = ObsTerm(func=mdp.ee_pos_r)
-        ee_quat = ObsTerm(func=mdp.ee_quat)
+        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        ee_pose = ObsTerm(func=mdp.ee_pose_b)
+        pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
         actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
@@ -122,8 +124,8 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # task terms
-    reaching_object = RewTerm(func=mdp.rewards_sweep.reaching_rew, params={}, weight=2.0)
-    align_ee = RewTerm(func=mdp.rewards_sweep.ee_Align, params={}, weight=2.0)
+    reaching_object = RewTerm(func=mdp.rewards.reaching_rew, params={"command_name": "ee_pose"}, weight=2.0)
+    align_ee = RewTerm(func=mdp.rewards.orientation_command_error, params={"command_name": "ee_pose"}, weight=-0.1)
     
     # action penalty
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
@@ -160,7 +162,7 @@ class ReachEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the reach end-effector pose tracking environment."""
 
     # Scene settings
-    scene: ReachSceneCfg = ReachSceneCfg(num_envs=6144, env_spacing=2.5)
+    scene: ReachSceneCfg = ReachSceneCfg(num_envs=4096, env_spacing=2.5)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
