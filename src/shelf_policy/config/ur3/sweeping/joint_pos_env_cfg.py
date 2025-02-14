@@ -13,13 +13,13 @@ from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.sim.schemas.schemas_cfg import MassPropertiesCfg
 
 from omni.isaac.lab_tasks.manager_based.manipulation.lift import mdp
-from shelf_ur3_sweeping import ShelfEnvCfg
+from shelf_policy.shelf_ur3_sweeping import ShelfEnvCfg
 import torch
 ##
 # Pre-defined configs
 ##
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
-from asset.ur3_robotitq import UR3_Robotiq_CFG
+from shelf_policy.asset.ur3_robotitq import UR3_Robotiq_CFG
 
 
 @configclass

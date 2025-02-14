@@ -49,8 +49,8 @@ UR3_CFG = ArticulationCfg(
                               "elbow_joint",],
             velocity_limit=3.14,
             effort_limit=87.0,
-            stiffness=800,
-            damping=40,
+            stiffness=210,
+            damping=21,
         ),
         
         "wrist": ImplicitActuatorCfg(
@@ -59,8 +59,8 @@ UR3_CFG = ArticulationCfg(
                               "wrist_3_joint"],
             velocity_limit=6.28,
             effort_limit=87.0,
-            stiffness=800,
-            damping=40,            
+            stiffness=210,
+            damping=21,            
         ),
     },
 )

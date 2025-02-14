@@ -13,7 +13,7 @@ from . import joint_pos_env_cfg
 # Pre-defined configs
 ##
 
-from asset.ur3_robotitq import UR3_Robotiq_CFG
+from shelf_policy.asset.ur3_robotitq import UR3_Robotiq_CFG
 
 
 @configclass

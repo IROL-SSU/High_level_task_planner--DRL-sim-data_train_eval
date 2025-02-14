@@ -34,7 +34,7 @@ class UR3ReachEnvCfg(ReachEnvCfg):
         self.scene.robot = UR3_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
        
         # Set actions for the specific robot type
-        self.actions.arm_action = mdp.JointVelocityActionCfg(
+        self.actions.arm_action = mdp.JointPositionActionCfg(
             asset_name="robot", 
             joint_names=["shoulder_pan_joint",
                         "shoulder_lift_joint",
@@ -62,8 +62,6 @@ class UR3ReachEnvCfg(ReachEnvCfg):
                 ),
             ],
         )
-
-        self.rewards.align_ee.params["asset_cfg"].body_names = ["tool0"]
         
         self.commands.ee_pose.body_name = "tool0"
         self.commands.ee_pose.ranges.pitch = (math.pi / 2, math.pi / 2)

@@ -44,10 +44,7 @@ def reaching_rew(env: ManagerBasedRLEnv,
     return reward
 
 
-def orientation_command_error(env: ManagerBasedRLEnv, 
-                              command_name: str = MISSING,
-                              robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),  
-                              ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame")) -> torch.Tensor:
+def orientation_command_error(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Penalize tracking orientation error using shortest path.
 
     The function computes the orientation error between the desired orientation (from the command) and the
@@ -55,11 +52,10 @@ def orientation_command_error(env: ManagerBasedRLEnv,
     path between the desired and current orientations.
     """
     # extract the asset (to enable type hinting)
-    robot: RigidObject = env.scene[robot_cfg.name]
-    ee: FrameTransformer = env.scene[ee_frame_cfg.name]
+    asset: RigidObject = env.scene[asset_cfg.name]
     command = env.command_manager.get_command(command_name)
     # obtain the desired and current orientations
     des_quat_b = command[:, 3:7]
-    des_quat_w = quat_mul(robot.data.root_state_w[:, 3:7], des_quat_b)
-    curr_quat_w = ee.data.target_quat_w[:, 0, :]  # type: ignore
+    des_quat_w = quat_mul(asset.data.root_state_w[:, 3:7], des_quat_b)
+    curr_quat_w = asset.data.body_state_w[:, asset_cfg.body_ids[0], 3:7]  # type: ignore
     return quat_error_magnitude(curr_quat_w, des_quat_w)
