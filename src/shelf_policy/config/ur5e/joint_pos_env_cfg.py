@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from omni.isaac.lab.assets import RigidObjectCfg, ArticulationCfg
+from omni.isaac.lab.assets import RigidObjectCfg, ArticulationCfg, RigidObjectCollectionCfg
 from omni.isaac.lab.sensors import FrameTransformerCfg
 from omni.isaac.lab.sensors import ContactSensorCfg
 from omni.isaac.lab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
@@ -16,6 +16,7 @@ from omni.isaac.lab.sim.schemas.schemas_cfg import MassPropertiesCfg
 from shelf_policy import mdp
 from shelf_policy.shelf_multi_obj_env_cfg import ShelfEnvCfg
 import torch
+import os
 
 ##
 # Pre-defined configs
@@ -23,6 +24,7 @@ import torch
 
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 from shelf_policy.asset.ur3_robotitq import UR3_Robotiq_CFG
+from src_utils.shelf_utils import load_yaml_config, get_sorted_pose_matrix
 
 @configclass
 class UR5eShelfEnvCfg(ShelfEnvCfg):
@@ -53,60 +55,41 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         )
 
 
+        # YAML 파일 로드
+        object_cfgs = load_yaml_config(yaml_path="src/shelf_policy/params/environment.yaml")
+
+
+        rigid_obj_dict = {}
+        # 객체 정보 및 Pose 정보 가져오기
+        object_path_dict = object_cfgs["objects"]
+        object_pose_dict = object_cfgs["pose"]
+
+        # 크기(키 개수) 비교 후 에러 발생
+        if len(object_path_dict) != len(object_pose_dict):
+            raise ValueError(f"Error: Object count mismatch! "
+                            f"objects({len(object_path_dict)}) != pose({len(object_pose_dict)})")
+        
+        for key, value in object_path_dict.items():
+            rigid_obj: RigidObjectCfg=RigidObjectCfg(prim_path=os.path.join("{ENV_REGEX_NS}", f"{key}"),
+                                                    init_state=RigidObjectCfg.InitialStateCfg(pos=object_pose_dict[key][:3], rot=object_pose_dict[key][3:]),
+                                                    spawn=UsdFileCfg(usd_path=value,
+                                                                        scale=(1.0, 1.0, 1.0),
+                                                                        rigid_props=RigidBodyPropertiesCfg(
+                                                                            solver_position_iteration_count=16,
+                                                                            solver_velocity_iteration_count=1,
+                                                                            max_angular_velocity=1000.0,
+                                                                            max_linear_velocity=1000.0,
+                                                                            max_depenetration_velocity=5.0,
+                                                                            disable_gravity=False,
+                                                                        ),
+                                                                        mass_props=MassPropertiesCfg(mass=0.3),
+                                                                    ),
+                                                                )
+            
+            rigid_obj_dict[key] = rigid_obj
+            
         # Set Cup as object
-        self.scene.target = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/bottle",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.65, -0.20, 0.98], rot=[1, 0, 0, 0]),
-            spawn=UsdFileCfg(
-                usd_path=f"omniverse://localhost/Library/Shelf/Object/Bottle_6.usd",
-                scale=(1.0, 1.0, 1.0),
-                rigid_props=RigidBodyPropertiesCfg(
-                    solver_position_iteration_count=16,
-                    solver_velocity_iteration_count=1,
-                    max_angular_velocity=1000.0,
-                    max_linear_velocity=1000.0,
-                    max_depenetration_velocity=5.0,
-                    disable_gravity=False,
-                ),
-                mass_props=MassPropertiesCfg(mass=1.0),
-            ),
-        )
-
-        self.scene.cup2 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/bottle2",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.65, 0.0, 0.98], rot=[1, 0, 0, 0]),
-            spawn=UsdFileCfg(
-                usd_path=f"omniverse://localhost/Library/Shelf/Object/Bottle_7.usd",
-                scale=(1.0, 1.0, 1.0),
-                rigid_props=RigidBodyPropertiesCfg(
-                    solver_position_iteration_count=16,
-                    solver_velocity_iteration_count=1,
-                    max_angular_velocity=1000.0,
-                    max_linear_velocity=1000.0,
-                    max_depenetration_velocity=5.0,
-                    disable_gravity=False,
-                ),
-                mass_props=MassPropertiesCfg(mass=1.0),
-            ),
-        )
-
-        self.scene.cup3 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/bottle3",
-            init_state=RigidObjectCfg.InitialStateCfg(pos=[-0.65, 0.20, 0.98], rot=[1, 0, 0, 0]),
-            spawn=UsdFileCfg(
-                usd_path=f"omniverse://localhost/Library/Shelf/Object/Bottle_8.usd",
-                scale=(1.0, 1.0, 1.0),
-                rigid_props=RigidBodyPropertiesCfg(
-                    solver_position_iteration_count=16,
-                    solver_velocity_iteration_count=1,
-                    max_angular_velocity=1000.0,
-                    max_linear_velocity=1000.0,
-                    max_depenetration_velocity=5.0,
-                    disable_gravity=False,
-                ),
-                mass_props=MassPropertiesCfg(mass=1.0),
-            ),
-        )
+        self.scene.object_collection: RigidObjectCollectionCfg = RigidObjectCollectionCfg(rigid_objects=rigid_obj_dict)
 
 
         
@@ -130,9 +113,9 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         )
 
         # asset dict
-        asset_dict: dict = {"objects": ["target", "cup2", "cup3"]}
+        # asset_dict: dict = {"objects": ["target", "cup2", "cup3"]}
 
-        self.events.object_spawn.params["asset_dict"] = asset_dict
+        # self.events.object_spawn.params["asset_dict"] = asset_dict
         
 
 

@@ -1,0 +1,9 @@
+objects:
+    bottle1 : omniverse://localhost/Library/Shelf/Object/Bottle_6.usd
+    bottle2 : omniverse://localhost/Library/Shelf/Object/Bottle_7.usd
+    bottle3 : omniverse://localhost/Library/Shelf/Object/Bottle_8.usd
+
+pose:
+    bottle1 : [-0.65, -0.2, 0.98, 1.0, 0.0, 0.0, 0.0]
+    bottle2 : [-0.65, 0.0, 0.98, 1.0, 0.0, 0.0, 0.0]
+    bottle3 : [-0.65, 0.2, 0.98, 1.0, 0.0, 0.0, 0.0]

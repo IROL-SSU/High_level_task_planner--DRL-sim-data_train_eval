@@ -6,7 +6,7 @@
 from dataclasses import MISSING
 
 import omni.isaac.lab.sim as sim_utils
-from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg
+from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg, RigidObjectCollectionCfg
 from omni.isaac.lab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 from omni.isaac.lab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
 from omni.isaac.lab.sensors import FrameTransformerCfg
@@ -69,9 +69,7 @@ class ShelfSceneCfg(InteractiveSceneCfg):
     ee_frame: FrameTransformerCfg = MISSING
 
     #Objects
-    target: RigidObjectCfg = MISSING
-    cup2: RigidObjectCfg = MISSING
-    cup3: RigidObjectCfg = MISSING
+    object_collection: RigidObjectCollectionCfg = MISSING
 
 
     
@@ -119,7 +117,7 @@ class EventCfg:
     """Configuration for events."""
 
     reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
-    object_spawn = EventTerm(func=mdp.Object_randomization, params={"asset_dict": MISSING}, mode="reset")
+    # object_spawn = EventTerm(func=mdp.Object_randomization, params={"asset_dict": MISSING}, mode="reset")
 
 
 
