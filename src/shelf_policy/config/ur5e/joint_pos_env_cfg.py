@@ -122,7 +122,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
 
 
         self.events.object_spawn.params["asset_dict"] = rigid_obj_dict
-        self.events.object_spawn.params["pose_array"] = load_and_reshape_pose(object_pose_dict)
+        self.events.object_spawn.params["pose_array"] = torch.tensor(load_and_reshape_pose(object_pose_dict), device=self.sim.device)
         self.events.object_spawn.params["object_id_dict"] = object_id_dict
         self.events.object_spawn.params["object_id_dict_rev"] = object_id_dict_rev
 
