@@ -24,7 +24,7 @@ import os
 
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 from shelf_policy.asset.ur3_robotitq import UR3_Robotiq_CFG
-from src_utils.shelf_utils import load_yaml_config, get_sorted_pose_matrix
+from src_utils.shelf_utils import load_yaml_config, load_and_reshape_pose
 
 @configclass
 class UR5eShelfEnvCfg(ShelfEnvCfg):
@@ -63,7 +63,8 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         # 객체 정보 및 Pose 정보 가져오기
         object_path_dict = object_cfgs["objects"]
         object_pose_dict = object_cfgs["pose"]
-
+        object_id_dict = object_cfgs["id"]
+        object_id_dict_rev = {str(v): k for k, v in object_id_dict.items()}
         # 크기(키 개수) 비교 후 에러 발생
         if len(object_path_dict) != len(object_pose_dict):
             raise ValueError(f"Error: Object count mismatch! "
@@ -89,7 +90,11 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             rigid_obj_dict[key] = rigid_obj
             
         # Set Cup as object
-        self.scene.object_collection: RigidObjectCollectionCfg = RigidObjectCollectionCfg(rigid_objects=rigid_obj_dict)
+        self.scene.object_collection= RigidObjectCollectionCfg(rigid_objects=rigid_obj_dict)
+
+        
+
+
 
 
         
@@ -115,7 +120,14 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         # asset dict
         # asset_dict: dict = {"objects": ["target", "cup2", "cup3"]}
 
-        # self.events.object_spawn.params["asset_dict"] = asset_dict
+
+        self.events.object_spawn.params["asset_dict"] = rigid_obj_dict
+        self.events.object_spawn.params["pose_array"] = load_and_reshape_pose(object_pose_dict)
+        self.events.object_spawn.params["object_id_dict"] = object_id_dict
+        self.events.object_spawn.params["object_id_dict_rev"] = object_id_dict_rev
+
+        # print(self.scene.target)
+        
         
 
 

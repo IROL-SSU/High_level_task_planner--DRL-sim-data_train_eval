@@ -26,6 +26,7 @@ from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 import shelf_policy.mdp as mdp
+import torch
 
 ##
 # Scene definition
@@ -70,6 +71,7 @@ class ShelfSceneCfg(InteractiveSceneCfg):
 
     #Objects
     object_collection: RigidObjectCollectionCfg = MISSING
+
 
 
     
@@ -117,7 +119,8 @@ class EventCfg:
     """Configuration for events."""
 
     reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
-    # object_spawn = EventTerm(func=mdp.Object_randomization, params={"asset_dict": MISSING}, mode="reset")
+    object_spawn = EventTerm(func=mdp.Object_randomization, 
+                             params={"asset_dict": MISSING, "pose_array":MISSING, "object_id_dict": MISSING, "object_id_dict_rev": MISSING}, mode="reset")
 
 
 
@@ -159,6 +162,12 @@ class CurriculumCfg:
 ##
 
 
+    
+
+
+        
+
+
 @configclass
 class ShelfEnvCfg(ManagerBasedRLEnvCfg):
     """Configuration for the reach end-effector pose tracking environment."""
@@ -174,12 +183,11 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
     terminations: TerminationsCfg = TerminationsCfg()
     events: EventCfg = EventCfg()
     curriculum: CurriculumCfg = CurriculumCfg()
-
     def __post_init__(self):
         """Post initialization."""
         # general settings
         self.decimation = 1
-        self.episode_length_s = 8.0
+        self.episode_length_s = 3.0
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
 
