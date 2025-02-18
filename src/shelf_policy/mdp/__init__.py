@@ -13,3 +13,4 @@ from .pre_trained_policy_action import *
 from .rewards_sweep import *
 from .rewards_grasp import *
 from .commands import *
+from .events import *
