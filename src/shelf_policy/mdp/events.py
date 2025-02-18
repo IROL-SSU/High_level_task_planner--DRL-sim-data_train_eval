@@ -38,6 +38,8 @@ class Object_randomization(ManagerTermBase):
                  object_id_dict: dict = MISSING,
                  object_id_dict_rev: dict = MISSING,
                  object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
+                 ceiling_height: int = MISSING,
+                 task_mode: str = MISSING,
                 ):
         
         rows, cols = pose_array.shape[1], pose_array.shape[2]
@@ -65,16 +67,18 @@ class Object_randomization(ManagerTermBase):
 
             object_collection.write_object_link_pose_to_sim(torch.cat((positions, orientations), dim=1).unsqueeze(1), env_ids=env_ids, object_ids=object_id[0])
         
-        adjacent_indices = self.sweeping_right_mode(target_cell, rows, cols, env.device)
+        if task_mode == "sweeping_right":
 
-        for value in adjacent_indices:
-            obj_id = value[0] * cols + value[1]
-            obj = object_id_list[obj_id]
-            pose_instance = pose_array[0, value[0], value[1]]
-            positions = pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
-            positions[:, 2] = 1.3  # 높이 변경
-            object_id = object_collection.find_objects(name_keys=obj)
-            object_collection.write_object_link_pose_to_sim(torch.cat((positions, orientations), dim=1).unsqueeze(1), env_ids=env_ids, object_ids=object_id[0])
+            adjacent_indices = self.sweeping_right_mode(target_cell, rows, cols, env.device)
+
+            for value in adjacent_indices:
+                obj_id = value[0] * cols + value[1]
+                obj = object_id_list[obj_id]
+                pose_instance = pose_array[0, value[0], value[1]]
+                positions = pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
+                positions[:, 2] = ceiling_height  # 높이 변경
+                object_id = object_collection.find_objects(name_keys=obj)
+                object_collection.write_object_link_pose_to_sim(torch.cat((positions, orientations), dim=1).unsqueeze(1), env_ids=env_ids, object_ids=object_id[0])
 
 
     def sweeping_right_mode(self, target_id: int, rows: int, cols: int, device):
@@ -109,18 +113,3 @@ class Object_randomization(ManagerTermBase):
         adjacent_array = torch.cat((front_indices, right_index, diagonal_indices), dim=0)
 
         return adjacent_array
-        
-
-        
-
-        
-
-
-        
-
-
-
-
-
-
-
