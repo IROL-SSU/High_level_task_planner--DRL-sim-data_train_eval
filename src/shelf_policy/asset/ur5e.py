@@ -38,9 +38,9 @@ UR5e_CFG = ArticulationCfg(
             "elbow_joint": 2.0, # 1.3439 / 1.9
             "wrist_1_joint": 0.0, # 0.0 
             "wrist_2_joint": 1.57, # 1.5708 / 1.57
-            "wrist_3_joint": 2.2, # 1.5708 / 2.1
+            "wrist_3_joint": -0.8, # 1.5708 / 2.1
             "left_outer_knuckle_joint": 0.0, # 0.0
-            "right_outer_knuckle_joint": 0.0, # 0.0
+            "right_outer_knuckle_joint": 0.0, # 0.0  
         },
     ),
     actuators={

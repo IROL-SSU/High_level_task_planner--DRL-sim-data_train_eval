@@ -4,21 +4,39 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from __future__ import annotations
+from dataclasses import MISSING
 
 import torch
 from typing import TYPE_CHECKING
 
-from omni.isaac.lab.assets import RigidObject, Articulation
+from omni.isaac.lab.assets import RigidObject, Articulation, RigidObjectCollection
 from omni.isaac.lab.utils.math import subtract_frame_transforms, quat_unique
 from omni.isaac.lab.sensors import FrameTransformerData, ContactSensorData
 from omni.isaac.lab.managers import SceneEntityCfg, ManagerTermBase
 from omni.isaac.lab.sensors import FrameTransformer
 from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 
+from random import choice
+
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
 
 
+def MA_object_position_in_RRF(
+        env: ManagerBasedRLEnv,
+        robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+        object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
+        asset_dict: dict = MISSING,
+        object_id_dict: dict = MISSING,
+        object_id_dict_rev: dict = MISSING,
+)-> torch.Tensor:
+    
+    object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+
+    env.target_id = object_id_dict[choice(list(asset_dict.keys()))]
+    target_obj = object_id_dict_rev[str(env.target_id)]
+    
+    
 
 def object_position_in_robot_root_frame(
     env: ManagerBasedRLEnv,

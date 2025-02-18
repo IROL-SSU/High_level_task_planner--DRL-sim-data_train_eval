@@ -23,7 +23,7 @@ import os
 ##
 
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
-from shelf_policy.asset.ur3_robotitq import UR3_Robotiq_CFG
+from shelf_policy.asset.ur5e import UR5e_CFG
 from src_utils.shelf_utils import load_yaml_config, load_and_reshape_pose
 
 @configclass
@@ -33,7 +33,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         super().__post_init__()
 
         # Set Franka as robot
-        self.scene.robot = UR3_Robotiq_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = UR5e_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # Set actions for the specific robot type (franka)
         self.actions.arm_action = mdp.JointPositionActionCfg(
@@ -92,10 +92,6 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         # Set Cup as object
         self.scene.object_collection= RigidObjectCollectionCfg(rigid_objects=rigid_obj_dict)
 
-        
-
-
-
 
         
         # Listens to the required transforms
@@ -108,7 +104,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_85_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
                     name="end_effector",
                     offset=OffsetCfg(
                         pos=[0.0, 0.0, 0.14],
@@ -125,6 +121,8 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         self.events.object_spawn.params["pose_array"] = torch.tensor(load_and_reshape_pose(object_pose_dict), device=self.sim.device)
         self.events.object_spawn.params["object_id_dict"] = object_id_dict
         self.events.object_spawn.params["object_id_dict_rev"] = object_id_dict_rev
+        self.events.object_spawn.params["ceiling_height"] = 1.8
+        self.events.object_spawn.params["task_mode"] = "sweeping_right"
 
         # print(self.scene.target)
         
