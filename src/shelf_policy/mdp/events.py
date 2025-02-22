@@ -50,6 +50,8 @@ class Object_randomization(ManagerTermBase):
 
         object_id_list: list = list(asset_dict.keys())
 
+        shuffle(object_id_list)
+
         # 우선 orientation randomization은 안줌
         orientations = torch.empty((env_ids.shape[0], 4) , device=env.device)
         orientations[:, :] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=env.device)

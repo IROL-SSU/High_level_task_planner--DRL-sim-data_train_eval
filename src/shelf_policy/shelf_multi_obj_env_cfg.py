@@ -85,6 +85,15 @@ class ShelfSceneCfg(InteractiveSceneCfg):
 class CommandsCfg:
     """Command terms for the MDP."""
 
+    target_goal_pos = mdp.DynamicObjectGoalPosCommandCfg(
+        asset_name=MISSING,
+        asset_dict=MISSING,
+        object_id_dict_rev=MISSING,
+        init_pos_offset=(0.0, 0.15, 0.0),
+        update_goal_on_success=False,
+        position_success_threshold=0.03,
+        debug_vis=True,)
+
 
 @configclass
 class ActionsCfg:
@@ -105,6 +114,10 @@ class ObservationsCfg:
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
+        target_obs_state = ObsTerm(func=mdp.MA_object_position_in_RRF, params={"asset_dict": MISSING, "object_id_dict_rev": MISSING}, noise = Unoise(n_min=-0.01, n_max=0.01))
+        ee_pos = ObsTerm(func=mdp.ee_pos_r)
+        ee_quat = ObsTerm(func=mdp.ee_quat_r)
+
 
         def __post_init__(self):
             self.enable_corruption = True

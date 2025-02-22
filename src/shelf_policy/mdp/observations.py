@@ -27,14 +27,33 @@ def MA_object_position_in_RRF(
         robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
         object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
         asset_dict: dict = MISSING,
-        object_id_dict: dict = MISSING,
         object_id_dict_rev: dict = MISSING,
 )-> torch.Tensor:
-    
-    object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+    """
+        The position of the target object in the robot's root frame.
+    """
 
-    env.target_id = object_id_dict[choice(list(asset_dict.keys()))]
+    robot: RigidObject = env.scene[robot_cfg.name]
+    object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+    
+    # Retrieve the target object name based on its ID
     target_obj = object_id_dict_rev[str(env.target_id)]
+
+    # Find the corresponding object ID in the collection
+    target_id = object_collection.find_objects(name_keys=target_obj)
+
+    # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+    target_state_w = object_collection.data.object_state_w[:, target_id[0]]
+
+    # Compute the position of the target object relative to the robot
+    # (Transforms the target object’s position from the world frame to the robot’s base frame)
+    object_pos_b, _ = subtract_frame_transforms(
+        robot.data.root_state_w[:, :3], # Robot's position in the world frame  
+        robot.data.root_state_w[:, 3:7], # Robot's orientation in the world frame (quaternion) 
+        target_state_w[..., 0,:3] # Target object's position in the world frame
+    )
+
+    return object_pos_b
     
     
 
@@ -108,7 +127,7 @@ def ee_pos(env: ManagerBasedRLEnv) -> torch.Tensor:
 
     return ee_pos
 
-def ee_pos_r(env: ManagerBasedRLEnv) -> torch.Tensor:
+def ee_pos_r(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Tensor:
     """The position of the end-effector relative to the environment origins."""
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot")
     robot: RigidObject = env.scene[robot_cfg.name]
@@ -119,11 +138,15 @@ def ee_pos_r(env: ManagerBasedRLEnv) -> torch.Tensor:
         robot.data.root_state_w[:, :3], robot.data.root_state_w[:, 3:7], ee_pos_w, ee_quat_w
     )
 
+    ee_quat_b = quat_unique(ee_quat_b) if make_quat_unique else ee_quat
+
     # print(f"ee_pos_w: {ee_tf_data.target_pos_w[..., 0, :]}")
-    print(f"ee_pos_r: {ee_pos_b}")
+    # print(f"ee_pos_r: {ee_pos_b}")
     # print(f"ee_quat_b: {ee_quat_b}")
 
-    return ee_pos_b
+    # print(torch.cat((ee_pos_b, ee_quat_b), dim=-1))
+
+    return torch.cat((ee_pos_b, ee_quat_b), dim=-1)
 
 def ee_quat(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Tensor:
     """The orientation of the end-effector in the environment frame.
@@ -133,7 +156,7 @@ def ee_quat(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Tens
     ee_tf_data: FrameTransformerData = env.scene["ee_frame"].data
     ee_quat = ee_tf_data.target_quat_w[..., 0, :]
 
-    print(f"ee_quat:{ee_quat}")
+    # print(f"ee_quat:{ee_quat}")
     # make first element of quaternion positive
     return quat_unique(ee_quat) if make_quat_unique else ee_quat
 

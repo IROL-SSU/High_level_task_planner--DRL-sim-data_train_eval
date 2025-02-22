@@ -1,2 +1,2 @@
-from .commands_cfg import ObjectGoalPosCommandCfg, EEGoalPosCommandCfg
-from .position_command import ObjectGoalPosCommand, EEGoalPosCommand
+from .commands_cfg import ObjectGoalPosCommandCfg, EEGoalPosCommandCfg, DynamicObjectGoalPosCommandCfg
+from .position_command import ObjectGoalPosCommand, EEGoalPosCommand, DynamicObjectGoalPosCommand

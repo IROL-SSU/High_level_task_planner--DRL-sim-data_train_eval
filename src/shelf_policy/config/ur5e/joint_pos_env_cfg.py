@@ -117,12 +117,19 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         # asset_dict: dict = {"objects": ["target", "cup2", "cup3"]}
 
 
+        self.observations.policy.target_obs_state.params["asset_dict"] = rigid_obj_dict
+        self.observations.policy.target_obs_state.params["object_id_dict_rev"] = object_id_dict_rev
+
         self.events.object_spawn.params["asset_dict"] = rigid_obj_dict
         self.events.object_spawn.params["pose_array"] = torch.tensor(load_and_reshape_pose(object_pose_dict), device=self.sim.device)
         self.events.object_spawn.params["object_id_dict"] = object_id_dict
         self.events.object_spawn.params["object_id_dict_rev"] = object_id_dict_rev
         self.events.object_spawn.params["ceiling_height"] = 1.8
         self.events.object_spawn.params["task_mode"] = "sweeping_right"
+
+        self.commands.target_goal_pos.asset_dict = rigid_obj_dict
+        self.commands.target_goal_pos.object_id_dict_rev = object_id_dict_rev
+        self.commands.target_goal_pos.asset_name = "object_collection"
 
         # print(self.scene.target)
         
