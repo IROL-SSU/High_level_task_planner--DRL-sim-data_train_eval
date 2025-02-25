@@ -49,6 +49,7 @@ class Object_randomization(ManagerTermBase):
         target_obj = object_id_dict_rev[str(env.target_id)]
 
         object_id_list: list = list(asset_dict.keys())
+        shuffle(object_id_list)
 
         # 우선 orientation randomization은 안줌
         orientations = torch.empty((env_ids.shape[0], 4) , device=env.device)
@@ -59,10 +60,12 @@ class Object_randomization(ManagerTermBase):
             if asset_cfg == target_obj:
                     target_cell = i
             pose_instance = pose_array[0, i // cols, i % cols]
-
-            positions = pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
             
+            xy_uncertainty = torch.empty(2, device=env.device).uniform_(-0.01, 0.01)
+            pose_uncertainty = torch.cat([xy_uncertainty, torch.tensor([0.0], device=env.device)])
 
+            positions = pose_uncertainty + pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
+            
             object_id = object_collection.find_objects(name_keys=asset_cfg)
 
             object_collection.write_object_link_pose_to_sim(torch.cat((positions, orientations), dim=1).unsqueeze(1), env_ids=env_ids, object_ids=object_id[0])

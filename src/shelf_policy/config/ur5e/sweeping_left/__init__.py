@@ -92,7 +92,7 @@ gym.register(
 # )
 
 gym.register(
-    id="Isaac-Shelf-UR5e-Sweep-right-v0",
+    id="Isaac-Shelf-UR5e-Sweep-left-v0",
     entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
     kwargs={
         "env_cfg_entry_point": joint_pos_env_cfg.UR5eShelfEnvCfg,
