@@ -150,9 +150,15 @@ class RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     reaching = RewTerm(
-        func=mdp.rewards_sweep_ur5e.reaching_rew,
+        func=mdp.rewards_sweep_ur5e.reward_for_hand_reaching,
         weight=1.0,
         params={"object_id_dict_rev": MISSING}
+    )
+
+    orientation = RewTerm(
+        func=mdp.rewards_sweep_ur5e.reward_for_hand_ori,
+        weight=1.0,
+        params={"object_id_dict_rev": MISSING},
     )
 
 

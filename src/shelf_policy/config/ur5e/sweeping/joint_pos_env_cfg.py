@@ -134,9 +134,8 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         self.commands.target_goal_pos.asset_name = "object_collection"
 
         self.rewards.reaching.params["object_id_dict_rev"] = object_id_dict_rev
+        self.rewards.orientation.params["object_id_dict_rev"] = object_id_dict_rev
 
-        # print(self.scene.target)
-        
         
 
 
