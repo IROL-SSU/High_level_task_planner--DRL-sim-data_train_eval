@@ -67,6 +67,7 @@ class UR3ReachEnvCfg(ReachEnvCfg):
 
         self.commands.ee_pose.body_name = "tool0"
         self.commands.ee_pose.ranges.pitch = (math.pi / 2, math.pi / 2)
+
         
         
 

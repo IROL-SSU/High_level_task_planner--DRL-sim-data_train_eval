@@ -54,6 +54,21 @@ def MA_object_position_in_RRF(
     )
 
     return object_pos_b
+
+def MA_target_goal_command(
+        env: ManagerBasedRLEnv, 
+        command_name: str = MISSING,
+        robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),) -> torch.Tensor:
+    
+    robot: RigidObject = env.scene[robot_cfg.name]
+    
+    command = env.command_manager.get_command(command_name)
+    des_pos_w = command[:, :3]
+    des_pos_b, _ = subtract_frame_transforms(
+        robot.data.root_state_w[:, :3], robot.data.root_state_w[:, 3:7], des_pos_w
+    )
+    
+    return des_pos_b
     
     
 

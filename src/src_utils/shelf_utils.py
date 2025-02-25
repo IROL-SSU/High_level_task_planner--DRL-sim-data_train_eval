@@ -1,6 +1,6 @@
 import yaml
 import numpy as np
-
+import torch 
 # YAML 파일 로드 함수
 def load_yaml_config(yaml_path):
     with open(yaml_path, "r") as file:
@@ -28,8 +28,7 @@ def load_and_reshape_pose(pose_dict):
     # 5. Reshape into (1, rows, cols, 7)
     pose_array = pose_array.reshape(1, num_rows, num_cols, 7)
 
-    return pose_array
-
+    return tuple(map(tuple, pose_array.tolist()))
 if __name__ == "__main__":
     yaml_path = "src/shelf_policy/params/environment.yaml"
     config = load_yaml_config(yaml_path)

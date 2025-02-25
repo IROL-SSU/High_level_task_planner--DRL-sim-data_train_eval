@@ -117,6 +117,7 @@ class ObservationsCfg:
         target_obs_state = ObsTerm(func=mdp.MA_object_position_in_RRF, params={"asset_dict": MISSING, "object_id_dict_rev": MISSING}, noise = Unoise(n_min=-0.01, n_max=0.01))
         ee_pos = ObsTerm(func=mdp.ee_pos_r)
         ee_quat = ObsTerm(func=mdp.ee_quat_r)
+        goal_pos = ObsTerm(func=mdp.MA_target_goal_command, params={"command_name": MISSING})
 
 
         def __post_init__(self):
@@ -132,7 +133,7 @@ class EventCfg:
     """Configuration for events."""
 
     reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
-    object_spawn = EventTerm(func=mdp.Object_randomization, 
+    object_spawn = EventTerm(func=mdp.randomize_scene, 
                              params={"asset_dict": MISSING, "pose_array":MISSING, "object_id_dict": MISSING, "object_id_dict_rev": MISSING, "ceiling_height": MISSING, "task_mode": MISSING}, mode="reset")
 
 
@@ -147,6 +148,11 @@ class RewardsCfg:
         func=mdp.joint_vel_l2,
         weight=-1e-4,
         params={"asset_cfg": SceneEntityCfg("robot")},
+    )
+    reaching = RewTerm(
+        func=mdp.rewards_sweep_ur5e.reaching_rew,
+        weight=1.0,
+        params={"object_id_dict_rev": MISSING}
     )
 
 
@@ -209,3 +215,4 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 16 * 16
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024 * 16
         self.sim.physx.friction_correlation_distance = 0.00625
+        self.sim.physx.gpu_max_rigid_patch_count = 10 * 2 ** 15

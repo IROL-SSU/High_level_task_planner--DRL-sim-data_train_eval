@@ -22,96 +22,97 @@ if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
 
 
-class Object_randomization(ManagerTermBase):
+def randomize_scene(
+    env: ManagerBasedRLEnv,
+    env_ids: torch.Tensor,
+    pose_array: tuple,
+    asset_dict: dict = MISSING,
+    object_id_dict: dict = MISSING,
+    object_id_dict_rev: dict = MISSING,
+    object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
+    ceiling_height: int = MISSING,
+    task_mode: str = MISSING
+) -> None:
+    
+    rows, cols = len(pose_array[0]), len(pose_array[0][0])
+    object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+    
+    target_object_id = object_id_dict[choice(list(asset_dict.keys()))]
+    target_object_name = object_id_dict_rev[str(target_object_id)]
 
-    def __init__(self, cfg: EventTermCfg, env: ManagerBasedRLEnv):
+    asset_keys_list: list = list(asset_dict.keys())
 
-        super().__init__(cfg, env)
+    pose_array_tensor = torch.tensor(pose_array, device=env.device)
 
-        self.asset_pose = np.zeros(1)
+    # Orientation randomization 미적용
+    orientations = torch.empty((env_ids.shape[0], 4), device=env.device)
+    orientations[:, :] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=env.device)
 
-    def __call__(self,
-                 env: ManagerBasedRLEnv,
-                 env_ids: torch.Tensor,
-                 asset_dict: dict = MISSING,
-                 pose_array: torch.Tensor = MISSING,
-                 object_id_dict: dict = MISSING,
-                 object_id_dict_rev: dict = MISSING,
-                 object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
-                 ceiling_height: int = MISSING,
-                 task_mode: str = MISSING,
-                ):
-        
-        rows, cols = pose_array.shape[1], pose_array.shape[2]
-        object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
-        
-        env.target_id = object_id_dict[choice(list(asset_dict.keys()))]
-        target_obj = object_id_dict_rev[str(env.target_id)]
+    shuffle(asset_keys_list)
 
-        object_id_list: list = list(asset_dict.keys())
+    for index, asset_name in enumerate(asset_keys_list):
+        if asset_name == target_object_name:
+            target_index = index
 
-        shuffle(object_id_list)
+        pose_instance = pose_array_tensor[0, index // cols, index % cols]
+        positions = pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
 
-        # 우선 orientation randomization은 안줌
-        orientations = torch.empty((env_ids.shape[0], 4) , device=env.device)
-        orientations[:, :] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=env.device)
+        object_ids = object_collection.find_objects(name_keys=asset_name)
 
-        for i, asset_cfg in enumerate(object_id_list):
+        object_collection.write_object_link_pose_to_sim(
+            torch.cat((positions, orientations), dim=1).unsqueeze(1),
+            env_ids=env_ids,
+            object_ids=object_ids[0]
+        )
+    
+    if task_mode == "sweeping_right":
+        adjacent_indices = sweeping_right_mode(target_index, rows, cols, env.device)
 
-            if asset_cfg == target_obj:
-                    target_cell = i
-            pose_instance = pose_array[0, i // cols, i % cols]
+        for adjacent in adjacent_indices:
+            object_index = adjacent[0] * cols + adjacent[1]
+            object_name = asset_keys_list[object_index]
 
+            pose_instance = pose_array_tensor[0, adjacent[0], adjacent[1]]
             positions = pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
-            
+            positions[:, 2] = ceiling_height  # 높이 변경
 
-            object_id = object_collection.find_objects(name_keys=asset_cfg)
-
-            object_collection.write_object_link_pose_to_sim(torch.cat((positions, orientations), dim=1).unsqueeze(1), env_ids=env_ids, object_ids=object_id[0])
-        
-        if task_mode == "sweeping_right":
-
-            adjacent_indices = self.sweeping_right_mode(target_cell, rows, cols, env.device)
-
-            for value in adjacent_indices:
-                obj_id = value[0] * cols + value[1]
-                obj = object_id_list[obj_id]
-                pose_instance = pose_array[0, value[0], value[1]]
-                positions = pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
-                positions[:, 2] = ceiling_height  # 높이 변경
-                object_id = object_collection.find_objects(name_keys=obj)
-                object_collection.write_object_link_pose_to_sim(torch.cat((positions, orientations), dim=1).unsqueeze(1), env_ids=env_ids, object_ids=object_id[0])
+            object_ids = object_collection.find_objects(name_keys=object_name)
+            object_collection.write_object_link_pose_to_sim(
+                torch.cat((positions, orientations), dim=1).unsqueeze(1),
+                env_ids=env_ids,
+                object_ids=object_ids[0]
+            )
 
 
-    def sweeping_right_mode(self, target_id: int, rows: int, cols: int, device):
-        """
-        Identify objects in front, right, and diagonal positions of the target.
-        If the target is in the last row, include all objects in the front rows.
-        Returns results as a GPU Tensor.
-        """
-        target_row = target_id // cols
-        target_col = target_id % cols
+def sweeping_right_mode(target_id: int, rows: int, cols: int, device):
+    """
+    Identify objects in front, right, and diagonal positions of the target.
+    If the target is in the last row, include all objects in the front rows.
+    Returns results as a GPU Tensor.
+    """
+    target_row = target_id // cols
+    target_col = target_id % cols
 
-        # (1) 앞쪽 찾기 (모든 앞쪽 행 포함)
-        if target_row > 0:
-            front_rows = torch.arange(target_row - 1, -1, -1, device=device)
-            front_indices = torch.stack((front_rows, torch.full_like(front_rows, target_col)), dim=1)
-        else:
-            front_indices = torch.empty((0, 2), dtype=torch.int64, device=device)
+    # (1) 앞쪽 찾기 (모든 앞쪽 행 포함)
+    if target_row > 0:
+        front_rows = torch.arange(target_row - 1, -1, -1, device=device)
+        front_indices = torch.stack((front_rows, torch.full_like(front_rows, target_col)), dim=1)
+    else:
+        front_indices = torch.empty((0, 2), dtype=torch.int64, device=device)
 
-        # (2) 오른쪽 찾기
-        if target_col < cols - 1:
-            right_index = torch.tensor([[target_row, target_col + 1]], device=device)
-        else:
-            right_index = torch.empty((0, 2), dtype=torch.int64, device=device)
+    # (2) 오른쪽 찾기
+    if target_col < cols - 1:
+        right_index = torch.tensor([[target_row, target_col + 1]], device=device)
+    else:
+        right_index = torch.empty((0, 2), dtype=torch.int64, device=device)
 
-        # (3) 우측 대각선 찾기
-        if target_row > 0 and target_col < cols - 1:
-            diagonal_indices = torch.stack((front_rows, torch.full_like(front_rows, target_col + 1)), dim=1)
-        else:
-            diagonal_indices = torch.empty((0, 2), dtype=torch.int64, device=device)
+    # (3) 우측 대각선 찾기
+    if target_row > 0 and target_col < cols - 1:
+        diagonal_indices = torch.stack((front_rows, torch.full_like(front_rows, target_col + 1)), dim=1)
+    else:
+        diagonal_indices = torch.empty((0, 2), dtype=torch.int64, device=device)
 
-        # (4) 모든 결과를 GPU Tensor로 결합
-        adjacent_array = torch.cat((front_indices, right_index, diagonal_indices), dim=0)
+    # (4) 모든 결과를 GPU Tensor로 결합
+    adjacent_array = torch.cat((front_indices, right_index, diagonal_indices), dim=0)
 
-        return adjacent_array
+    return adjacent_array
