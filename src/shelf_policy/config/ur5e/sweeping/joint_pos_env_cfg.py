@@ -56,7 +56,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
 
 
         # YAML 파일 로드
-        object_cfgs = load_yaml_config(yaml_path="src/shelf_policy/params/environment.yaml")
+        object_cfgs = load_yaml_config(yaml_path="src/shelf_policy/params/environment_KTH.yaml")
 
 
         rigid_obj_dict = {}
@@ -117,7 +117,6 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         # asset_dict: dict = {"objects": ["target", "cup2", "cup3"]}
 
 
-        self.observations.policy.target_obs_state.params["asset_dict"] = rigid_obj_dict
         self.observations.policy.target_obs_state.params["object_id_dict_rev"] = object_id_dict_rev
         self.observations.policy.goal_pos.params["command_name"] = "target_goal_pos"
 

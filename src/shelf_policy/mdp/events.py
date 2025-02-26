@@ -39,7 +39,7 @@ def randomize_scene(
     
     target_object_id = object_id_dict[choice(list(asset_dict.keys()))]
 
-    env.target_id = target_object_id
+    env.target_id[env_ids, 0] = target_object_id
 
     target_object_name = object_id_dict_rev[str(target_object_id)]
 

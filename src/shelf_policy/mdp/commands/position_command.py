@@ -41,17 +41,19 @@ class DynamicObjectGoalPosCommand(CommandTerm):
         # initialize the bse class
         super().__init__(cfg, env)
 
+        self.env = env
+
         self.object_collection: RigidObjectCollection = env.scene[cfg.asset_name]
         
         self.asset_dict: dict = cfg.asset_dict
 
         self.object_id_dict_rev = cfg.object_id_dict_rev
 
-        target_obj = self.object_id_dict_rev[str(env.target_id)]
+        # Get the target IDs directly from the environment tensor
+        target_ids = self.env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
 
-        self.target_id = self.object_collection.find_objects(name_keys=target_obj)
-
-        self.target_init_state_w = self.object_collection.data.default_object_state[:, self.target_id[0]]
+        # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+        self.target_init_state_w = self.object_collection.data.default_object_state[torch.arange(self.env.scene.num_envs), target_ids]
 
         self.init_pos_offset = torch.tensor(cfg.init_pos_offset, dtype=torch.float, device=self.device)
 
@@ -60,13 +62,14 @@ class DynamicObjectGoalPosCommand(CommandTerm):
         self.pos_command_w = self.pos_command_e + self._env.scene.env_origins
 
     def _resample_command(self, env_ids: Sequence[int]):
-        target_obj = self.object_id_dict_rev[str(self._env.target_id)]
 
-        self.target_id = self.object_collection.find_objects(name_keys=target_obj)
+        # Get the target IDs directly from the environment tensor
+        target_ids = self.env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
 
-        self.target_init_state_w = self.object_collection.data.object_link_state_w[:, self.target_id[0]]
+        # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+        self.target_init_state_w = self.object_collection.data.object_link_state_w[torch.arange(self.env.scene.num_envs), target_ids]
 
-        self.pos_command_e = self.target_init_state_w[..., 0, :3] + self.init_pos_offset - self._env.scene.env_origins
+        self.pos_command_e = self.target_init_state_w[..., :3] + self.init_pos_offset - self._env.scene.env_origins
         self.pos_command_w = self.pos_command_e + self._env.scene.env_origins
 
     def _update_metrics(self):
@@ -80,7 +83,7 @@ class DynamicObjectGoalPosCommand(CommandTerm):
         """
         The desired goal pose in the environment frame. Shpe is (num_envs, 7)
         """
-        return torch.cat((self.pos_command_w, self.target_init_state_w[..., 0, :3]), dim=-1)
+        return torch.cat((self.pos_command_w, self.target_init_state_w[..., 3:7]), dim=-1)
 
     def _set_debug_vis_impl(self, debug_vis: bool):
         # create markers if necessary for the first tome
@@ -106,11 +109,17 @@ class DynamicObjectGoalPosCommand(CommandTerm):
         
         # update the markers
         # -- goal pose
-        self.goal_pose_visualizer.visualize(self.pos_command_w[..., :3], self.target_init_state_w[...,0, 3:7])
+        self.goal_pose_visualizer.visualize(self.pos_command_w[..., :3], self.target_init_state_w[..., 3:7])
 
         # -- current body pose
-        body_link_state_w = self.object_collection.data.object_link_state_w[:, self.target_id[0]] 
-        self.current_pose_visualizer.visualize(body_link_state_w[...,0,:3], body_link_state_w[..., 0,3:7])
+
+        # Get the target IDs directly from the environment tensor
+        target_ids = self.env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
+
+        # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+        body_link_state_w = self.object_collection.data.object_link_state_w[torch.arange(self.env.scene.num_envs), target_ids]
+
+        self.current_pose_visualizer.visualize(body_link_state_w[..., :3], body_link_state_w[..., 3:7])
 
 
 
