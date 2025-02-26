@@ -136,6 +136,9 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         self.rewards.reaching.params["object_id_dict_rev"] = object_id_dict_rev
         self.rewards.orientation.params["object_id_dict_rev"] = object_id_dict_rev
 
+        self.terminations.object_drop.params["height_condition"] = 1.05
+        self.terminations.object_drop.params["rotation_condition"] = 0.9
+
         
 
 

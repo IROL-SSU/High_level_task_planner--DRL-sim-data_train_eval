@@ -50,7 +50,7 @@ def MA_object_position_in_RRF(
     object_pos_b, _ = subtract_frame_transforms(
         robot.data.root_state_w[:, :3], # Robot's position in the world frame  
         robot.data.root_state_w[:, 3:7], # Robot's orientation in the world frame (quaternion) 
-        target_state_w[..., 0,:3] # Target object's position in the world frame
+        target_state_w[...,0,:3] # Target object's position in the world frame
     )
 
     return object_pos_b

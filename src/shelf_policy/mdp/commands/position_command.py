@@ -62,12 +62,11 @@ class DynamicObjectGoalPosCommand(CommandTerm):
     def _resample_command(self, env_ids: Sequence[int]):
         target_obj = self.object_id_dict_rev[str(self._env.target_id)]
 
-
         self.target_id = self.object_collection.find_objects(name_keys=target_obj)
 
         self.target_init_state_w = self.object_collection.data.object_link_state_w[:, self.target_id[0]]
 
-        self.pos_command_e = self.target_init_state_w[..., 0, :3] + self.init_pos_offset - + self._env.scene.env_origins
+        self.pos_command_e = self.target_init_state_w[..., 0, :3] + self.init_pos_offset - self._env.scene.env_origins
         self.pos_command_w = self.pos_command_e + self._env.scene.env_origins
 
     def _update_metrics(self):
@@ -104,6 +103,7 @@ class DynamicObjectGoalPosCommand(CommandTerm):
         # note: this is needed in-case the robot is de-initialized. we can't access the data
         if not self.object_collection.is_initialized:
             return
+        
         # update the markers
         # -- goal pose
         self.goal_pose_visualizer.visualize(self.pos_command_w[..., :3], self.target_init_state_w[...,0, 3:7])

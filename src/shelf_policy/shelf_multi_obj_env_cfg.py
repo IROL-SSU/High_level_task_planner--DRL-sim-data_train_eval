@@ -167,6 +167,7 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=True, params={"height_condition":MISSING, "rotation_condition": MISSING})
 
 
 @configclass
@@ -221,4 +222,4 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 16 * 16
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024 * 16
         self.sim.physx.friction_correlation_distance = 0.00625
-        self.sim.physx.gpu_max_rigid_patch_count = 10 * 2 ** 15
+        self.sim.physx.gpu_max_rigid_patch_count = 5 * 2 ** 17

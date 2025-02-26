@@ -34,8 +34,8 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
 
     offset_pos = target_state_w.clone()
     offset_pos[..., 0, 0] = offset_pos[..., 0, 0] 
-    offset_pos[..., 0, 1] = offset_pos[..., 0,1] - 0.09
-    offset_pos[..., 0, 2] = offset_pos[..., 0, 2] + 0.06
+    offset_pos[..., 0, 1] = offset_pos[..., 0,1] - 0.06
+    offset_pos[..., 0, 2] = offset_pos[..., 0, 2] + 0.07
 
     distance = torch.norm((offset_pos[..., 0, :3] - ee_pos_w[..., 0, :]), dim=-1, p=2)
 
@@ -71,7 +71,7 @@ def reward_for_hand_ori(env: ManagerBasedRLEnv,
     offset_pos[..., 0, 2] = offset_pos[..., 0, 2] + 0.06
 
     distance = torch.norm((offset_pos[..., 0, :3] - ee_pos_w[..., 0, :]), dim=-1, p=2)
-    
+
     hand_ori = robot.data.joint_pos[:, 5]
     hand_init_ori = robot.data.default_joint_pos[:, 5]
 
@@ -79,4 +79,4 @@ def reward_for_hand_ori(env: ManagerBasedRLEnv,
 
     reward_for_ori_pose = 1.0 - torch.tanh(joint_pos_error/2.0)
 
-    return torch.where(distance < 0.03, reward_for_ori_pose, 0)
+    return torch.where(distance < 0.2, reward_for_ori_pose, 0)

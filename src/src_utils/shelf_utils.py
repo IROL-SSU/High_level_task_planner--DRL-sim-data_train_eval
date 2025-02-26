@@ -7,6 +7,11 @@ def load_yaml_config(yaml_path):
         config = yaml.safe_load(file)
     return config
 
+def normalize_angle(angle: torch.Tensor) -> torch.Tensor:
+    """Ensure angles are in the range [-π, π]."""
+    return (angle + torch.pi) % (2 * torch.pi) - torch.pi
+
+
 # Pose 데이터를 numpy 배열로 변환하고 정렬하는 함수
 def load_and_reshape_pose(pose_dict):
     """

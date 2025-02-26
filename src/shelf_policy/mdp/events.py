@@ -38,6 +38,9 @@ def randomize_scene(
     object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
     
     target_object_id = object_id_dict[choice(list(asset_dict.keys()))]
+
+    env.target_id = target_object_id
+
     target_object_name = object_id_dict_rev[str(target_object_id)]
 
     asset_keys_list: list = list(asset_dict.keys())
@@ -47,6 +50,8 @@ def randomize_scene(
     # Orientation randomization 미적용
     orientations = torch.empty((env_ids.shape[0], 4), device=env.device)
     orientations[:, :] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=env.device)
+    velocities = torch.zeros((env_ids.shape[0],6), device=env.device)
+
 
     shuffle(asset_keys_list)
 
@@ -59,11 +64,12 @@ def randomize_scene(
 
         object_ids = object_collection.find_objects(name_keys=asset_name)
 
-        object_collection.write_object_link_pose_to_sim(
-            torch.cat((positions, orientations), dim=1).unsqueeze(1),
+        object_collection.write_object_link_state_to_sim(
+            torch.cat((positions, orientations, velocities), dim=1).unsqueeze(1),
             env_ids=env_ids,
             object_ids=object_ids[0]
         )
+
     
     if task_mode == "sweeping_right":
         adjacent_indices = sweeping_right_mode(target_index, rows, cols, env.device)
