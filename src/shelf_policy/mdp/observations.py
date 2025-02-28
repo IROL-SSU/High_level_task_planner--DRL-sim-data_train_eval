@@ -49,7 +49,6 @@ def MA_object_position_in_RRF(
         target_state_w[:, :3] # Target object's position in the world frame
     )
 
-    # print(object_pos_b)
     return object_pos_b
 
 def MA_target_goal_command(

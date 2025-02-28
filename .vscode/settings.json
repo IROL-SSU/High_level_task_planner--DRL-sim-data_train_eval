@@ -657,5 +657,6 @@
       "${workspaceFolder}/IsaacLab/source/extensions/omni.isaac.lab_tasks",
       "${workspaceFolder}/IsaacLab/source/extensions/omni.isaac.lab",
       "${workspaceFolder}/src"
-  ]
+],
+"python.analysis.autoImportCompletions": true
 }

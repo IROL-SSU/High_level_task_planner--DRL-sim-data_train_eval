@@ -66,11 +66,11 @@ class DynamicObjectGoalPosCommand(CommandTerm):
         # Get the target IDs directly from the environment tensor
         target_ids = self.env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
 
-        # Get the world state(position, orientation, linear velocity, angular velocity); R^13
-        self.target_init_state_w = self.object_collection.data.object_link_state_w[torch.arange(self.env.scene.num_envs), target_ids]
+        # Get the world state for only the reset environments
+        self.target_init_state_w[env_ids] = self.object_collection.data.object_link_state_w[env_ids, target_ids[env_ids]]
 
-        self.pos_command_e = self.target_init_state_w[..., :3] + self.init_pos_offset - self._env.scene.env_origins
-        self.pos_command_w = self.pos_command_e + self._env.scene.env_origins
+        # Update only the reset environments in pos_command_w
+        self.pos_command_w[env_ids] = self.target_init_state_w[env_ids, ..., :3] + self.init_pos_offset
 
     def _update_metrics(self):
         pass

@@ -262,7 +262,7 @@ def process_file(depth_file, similarity_file, output_file):
     similarity_map = cv2.imread(similarity_file, cv2.IMREAD_GRAYSCALE)
 
     # [255, 255, 255]인 영역 찾기 (흰색)
-    mask = np.all(similarity_map == [255, 255, 255], axis=-1)
+    mask = similarity_map == 255
 
     # 흰색 영역이 하나라도 있으면 마스킹 적용
     if np.any(mask):
@@ -270,7 +270,7 @@ def process_file(depth_file, similarity_file, output_file):
         output_image = np.zeros_like(similarity_map)
 
         # 흰색(255,255,255) 영역만 유지
-        output_image[mask] = [255, 255, 255]
+        output_image[mask] = 255
 
         # 두 맵 결합 (50%씩 반영)
         combined_map = cv2.addWeighted(depth_map_norm, 0.0, output_image, 1.0, 0)
@@ -327,7 +327,7 @@ def process_all_maps(folder_path: str):
 if __name__ == "__main__":
     args_cli = parser.parse_args()
     # 이미지 폴더 경로
-    folder_path = "/home/irol/IsaacLab_IROL/src/high_level_dataset"
+    folder_path = ""
     combine_all_images(folder_path=folder_path, obj_type="target")
     combine_all_images(folder_path=folder_path, obj_type="scene")
     create_depth_distribution_map(folder_path=folder_path, visualization=False, save=args_cli.save)
