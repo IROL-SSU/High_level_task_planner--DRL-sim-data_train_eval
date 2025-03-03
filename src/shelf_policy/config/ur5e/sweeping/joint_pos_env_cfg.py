@@ -56,7 +56,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
 
 
         # YAML 파일 로드
-        object_cfgs = load_yaml_config(yaml_path="src/shelf_policy/params/environment.yaml")
+        object_cfgs = load_yaml_config(yaml_path="src/shelf_policy/params/environment_KTH.yaml")
 
 
         rigid_obj_dict = {}
@@ -96,7 +96,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         
         # Listens to the required transforms
         marker_cfg = FRAME_MARKER_CFG.copy()
-        marker_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
+        marker_cfg.markers["frame"].scale = (0.05, 0.05, 0.05)
         marker_cfg.prim_path = "/Visuals/FrameTransformer"
         self.scene.ee_frame = FrameTransformerCfg(
             prim_path="{ENV_REGEX_NS}/Robot/base_link",
@@ -113,11 +113,47 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             ],
         )
 
+        self.scene.finger_frame = FrameTransformerCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base_link",
+            debug_vis=True,
+            visualizer_cfg=marker_cfg,
+            target_frames=[
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    name="l_finger",
+                    offset=OffsetCfg(
+                        pos=(0.0, -0.07, 0.11),
+                    ),
+                ),
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    name="r_finger",
+                    offset=OffsetCfg(
+                        pos=(0.0, 0.07, 0.11),
+                    ),
+                ),
+            ],
+        )
+        
+        self.scene.wrist_frame = FrameTransformerCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base_link",
+            debug_vis=True,
+            visualizer_cfg=marker_cfg,
+            target_frames=[
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    name="wrist",
+                    offset=OffsetCfg(
+                        pos=(0.0, 0.0, -0.14),
+                    ),
+                ),
+            ],
+        )
+
         # asset dict
         # asset_dict: dict = {"objects": ["target", "cup2", "cup3"]}
 
 
-        self.observations.policy.target_obs_state.params["asset_dict"] = rigid_obj_dict
         self.observations.policy.target_obs_state.params["object_id_dict_rev"] = object_id_dict_rev
         self.observations.policy.goal_pos.params["command_name"] = "target_goal_pos"
 
@@ -134,7 +170,9 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         self.commands.target_goal_pos.asset_name = "object_collection"
 
         self.rewards.reaching.params["object_id_dict_rev"] = object_id_dict_rev
-        self.rewards.orientation.params["object_id_dict_rev"] = object_id_dict_rev
+
+        self.terminations.object_drop.params["height_condition"] = 0.99
+        self.terminations.object_drop.params["rotation_condition"] = 0.9
 
         
 

@@ -39,4 +39,10 @@ id:
     bottle_1: 9
     bottle_2: 10
     bottle_3: 11
-    
+
+
+category:
+    bottle: ["bottle_1", "bottle_2", "bottle_3"]
+    can: ["can_1", "can_2", "can_3"]
+    cup: ["cup_1", "cup_2", "cup_3"]
+    mug: ["mug_1", "mug_2", "mug_3"]

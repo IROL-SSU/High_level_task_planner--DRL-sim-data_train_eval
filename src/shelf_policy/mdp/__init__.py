@@ -9,6 +9,7 @@ from omni.isaac.lab.envs.mdp import *  # noqa: F401, F403
 
 from .observations import *  # noqa: F401, F403
 from .terminations import *  # noqa: F401, F403
+from .terminations_ma import *
 from .pre_trained_policy_action import *
 from .rewards_sweep import *
 from .rewards_grasp import *

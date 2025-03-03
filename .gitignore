@@ -333,3 +333,8 @@ _build
 **/runs/*
 **/logs/*
 **/recordings/*
+
+# dataset
+*.png
+*.npy
+*.json

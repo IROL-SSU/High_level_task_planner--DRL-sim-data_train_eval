@@ -31,47 +31,46 @@ UR5e_CFG = ArticulationCfg(
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.79505),
-        rot=(0.0 ,0.0 ,0.0 ,1.0),
+        rot=(0.0, 0.0, 0.0, 1.0),
         joint_pos={
-            "shoulder_pan_joint": 0.0, # -1.7540559 / -1.6
-            "shoulder_lift_joint": -2.0, # -1.27409 / -1.9
-            "elbow_joint": 2.0, # 1.3439 / 1.9
-            "wrist_1_joint": 0.0, # 0.0 
-            "wrist_2_joint": 1.57, # 1.5708 / 1.57
-            "wrist_3_joint": -0.3, # 1.5708 / 2.1
-            "left_outer_knuckle_joint": 0.0, # 0.0
-            "right_outer_knuckle_joint": 0.0, # 0.0  
+            "shoulder_pan_joint": 0.0,  # -1.7540559 / -1.6
+            "shoulder_lift_joint": -2.0,  # -1.27409 / -1.9
+            "elbow_joint": 2.0,  # 1.3439 / 1.9
+            "wrist_1_joint": 0.0,  # 0.0
+            "wrist_2_joint": 1.57,  # 1.5708 / 1.57
+            "wrist_3_joint": -0.4,  # 1.5708 / 2.1
+            "left_outer_knuckle_joint": 0.0,  # 0.0
+            "right_outer_knuckle_joint": 0.0,  # 0.0
         },
     ),
     actuators={
         "arm": ImplicitActuatorCfg(
-            joint_names_expr=["shoulder_pan_joint",
-                              "shoulder_lift_joint",
-                              "elbow_joint"],
-            velocity_limit=3.14,
+            joint_names_expr=[
+                "shoulder_pan_joint",
+                "shoulder_lift_joint",
+                "elbow_joint",
+                "wrist_1_joint",
+                "wrist_2_joint",
+                "wrist_3_joint",
+            ],
+            velocity_limit={
+                "shoulder_pan_joint": 3.14,
+                "shoulder_lift_joint": 3.14,
+                "elbow_joint": 3.14,
+                "wrist_1_joint": 6.28,
+                "wrist_2_joint": 6.28,
+                "wrist_3_joint": 6.28,
+            },
             effort_limit=87.0,
-            stiffness=210.0,
-            damping=21.0, 
+            stiffness=210,
+            damping=21,
         ),
-
-        "wrist": ImplicitActuatorCfg(
-            joint_names_expr=["wrist_1_joint",
-                              "wrist_2_joint",
-                              "wrist_3_joint"],
-            velocity_limit = 6.28,
-            effort_limit=87.0,
-            stiffness=210.0,
-            damping=21.0,
-        ),
-
         "gripper": ImplicitActuatorCfg(
-            joint_names_expr=["left_outer_knuckle_joint",
-                              "right_outer_knuckle_joint"],
+            joint_names_expr=["left_outer_knuckle_joint", "right_outer_knuckle_joint"],
             effort_limit=200.0,
             velocity_limit=0.5,
             stiffness=200,
-            damping=20
+            damping=20,
         ),
     },
 )
-
