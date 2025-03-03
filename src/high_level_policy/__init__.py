@@ -6,8 +6,6 @@
 import gymnasium as gym
 import os
 
-from . import discrete_policy_env_cfg
-
 ##
 # Register Gym environments.
 ##
@@ -18,10 +16,10 @@ from . import discrete_policy_env_cfg
 
 
 gym.register(
-    id="Isaac-High-Level-v0",
-    entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
-    kwargs={
-        "env_cfg_entry_point": discrete_policy_env_cfg.DiscreteActionShelfEnvCfg,
-    },
+    id="Isaac-shelf-Direct-v0",
+    entry_point=f"{__name__}.direct_shelf_env:DirectShelfEnv",
     disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.direct_shelf_env:DirectShelfEnvCfg",
+    },
 )
