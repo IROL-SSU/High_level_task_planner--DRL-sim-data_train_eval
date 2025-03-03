@@ -8,6 +8,7 @@ from __future__ import annotations
 import math
 import torch
 from collections.abc import Sequence
+import random
 import os
 
 from omni.isaac.lab_assets.cart_double_pendulum import CART_DOUBLE_PENDULUM_CFG
@@ -69,7 +70,7 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
 
     # YAML 파일 로드
     object_cfgs = load_yaml_config(
-        yaml_path="src/shelf_policy/params/environment_KTH.yaml"
+        yaml_path="src/shelf_policy/params/environment_highlevel.yaml"
     )
 
     rigid_obj_dict = {}
@@ -116,6 +117,7 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
     object_pose_dict = object_cfgs["pose"]
     object_id_dict = object_cfgs["id"]
     object_id_dict_rev = {str(v): k for k, v in object_id_dict.items()}
+    object_category = object_cfgs["category"]
 
     pose_array = load_and_reshape_pose(object_pose_dict)
     asset_dict: dict = rigid_obj_dict
@@ -170,6 +172,8 @@ class DirectShelfEnv(DirectRLEnv):
             env_ids = self.cartpole._ALL_INDICES
         super()._reset_idx(env_ids)
         rows, cols = len(self.cfg.pose_array[0]), len(self.cfg.pose_array[0][0])
+        random_row = torch.randint(0, rows, (1,)).item()  # 0부터 rows-1까지 랜덤
+        random_col = torch.randint(0, cols, (1,)).item()  # 0부터 cols-1까지 랜덤
 
         target_object_id = self.cfg.object_id_dict[
             choice(list(self.cfg.asset_dict.keys()))
@@ -178,8 +182,128 @@ class DirectShelfEnv(DirectRLEnv):
         self.target_id[env_ids, 0] = target_object_id
 
         target_object_name = self.cfg.object_id_dict_rev[str(target_object_id)]
+        target_category = self.get_category(target_object_name)
+        same_category_items = self.cfg.object_category[target_category].copy()
 
-        asset_keys_list: list = list(self.cfg.asset_dict.keys())
+        similar_category = None
+        if target_category in ["cup", "mug"]:
+            similar_category = "mug" if target_category == "cup" else "cup"
+        elif target_category in ["bottle", "can"]:
+            similar_category = "can" if target_category == "bottle" else "bottle"
+
+        similar_category_items = self.cfg.object_category[similar_category].copy()
+
+        other_categories = set(self.cfg.object_category.keys()) - {
+            target_category,
+            similar_category,
+        }
+        other_category_items = []
+        for cat in other_categories:
+            other_category_items.extend(self.cfg.object_category[cat])
+
+        # 위치별로 배치할 오브젝트 리스트 생성
+        placement_list = []
+        used_items = {}
+
+        # 이미 사용된 위치를 추적하기 위한 집합 # 타겟 위치 추가
+        placement_list.append(((random_row, random_col), target_object_name))
+        used_positions = {(random_row, random_col)}
+
+        def place_items_with_weights(items, candidate_positions, position_weights):
+            """아이템을 가중치 기반으로 배치하고 중복 발생 시 다른 유효한 자리를 재탐색."""
+
+            while items and candidate_positions:
+                # 가중치 기반으로 위치 선택
+                weighted_pos = random.choices(
+                    population=candidate_positions, weights=position_weights, k=1
+                )[0]
+
+                if weighted_pos not in used_positions:
+                    # 중복되지 않은 경우 배치
+                    item = items.pop(0)
+                    if item != target_object_name:
+                        placement_list.append((weighted_pos, item))
+                        used_positions.add(weighted_pos)
+
+                        # 선택된 위치를 후보와 가중치에서 제거
+                        idx = candidate_positions.index(weighted_pos)
+                        candidate_positions.pop(idx)
+                        position_weights.pop(idx)
+                else:
+                    # 중복된 경우 후보와 가중치에서 해당 위치만 제거
+                    idx = candidate_positions.index(weighted_pos)
+                    candidate_positions.pop(idx)
+                    position_weights.pop(idx)
+            if items:
+                for item in items:
+                    if item != target_object_name:
+                        used_items[item] = 1
+
+        # 같은 카테고리 (0.8) 배치
+        same_category_positions = []
+        for row_idx in range(
+            random_row - 1, -1, -1
+        ):  # 타겟보다 뒤쪽(행 번호가 작은 방향)
+            for col_offset in [-1, 0, 1]:  # 타겟 열 주변의 좌(-1), 정면(0), 우(1)
+                col_idx = random_col + col_offset  # 열 계산
+                if 0 <= col_idx < rows:  # 유효한 열인지 확인
+                    same_category_positions.append((row_idx, col_idx))  # 위치 저장
+
+        # 중심 열에 더 높은 가중치를 부여
+        position_weights = [
+            5.0 if pos[1] == random_col else 1.0 for pos in same_category_positions
+        ]
+        place_items_with_weights(
+            same_category_items, same_category_positions, position_weights
+        )
+
+        # 유사한 카테고리 (0.5) 배치
+        similar_category_positions = []
+        similar_cols = [random_col - 1, random_col + 1]
+        position_weights = []
+
+        for col_idx in similar_cols:
+            if 0 <= col_idx < rows:
+                for row_idx in range(rows):
+                    similar_category_positions.append((row_idx, col_idx))
+                    position_weights.append(5.0)
+
+                    # 좌, 우로 확장
+                    adj_col_idx = col_idx + (1 if col_idx == random_col - 1 else -1)
+                    if 0 <= adj_col_idx < cols:
+                        similar_category_positions.append((row_idx, adj_col_idx))
+                        position_weights.append(1.0)
+
+        place_items_with_weights(
+            similar_category_items, similar_category_positions, position_weights
+        )
+
+        # 카테고리 0.8과 0.5에서 사용된 열 추적
+        used_columns = {random_col}  # 타겟 열 포함
+        used_columns.update(
+            [pos[1] for pos in same_category_positions]
+        )  # 0.8에서 사용된 열 추가
+        used_columns.update(
+            [pos[1] for pos in similar_category_positions]
+        )  # 0.5에서 사용된 열 추가
+
+        # 다른 카테고리 (0.1) 배치
+        other_category_positions = []
+        available_columns = [
+            col_idx for col_idx in range(cols) if col_idx not in used_columns
+        ]
+
+        for col_idx in available_columns:  # 사용되지 않은 열에서만 선택
+            for row_idx in range(rows):
+                other_category_positions.append((row_idx, col_idx))
+
+        position_weights = [1.0] * len(other_category_positions)  # 균등 가중치
+        place_items_with_weights(
+            other_category_items, other_category_positions, position_weights
+        )
+
+        # asset_keys_list: list = list(self.cfg.asset_dict.keys())
+        rest_objects = list(used_items.keys())
 
         pose_array_tensor = torch.tensor(self.cfg.pose_array, device=self.device)
 
@@ -188,17 +312,44 @@ class DirectShelfEnv(DirectRLEnv):
         orientations[:, :] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device)
         velocities = torch.zeros((env_ids.shape[0], 6), device=self.device)
 
-        shuffle(asset_keys_list)
-
-        for index, asset_name in enumerate(asset_keys_list):
-            if asset_name == target_object_name:
-                target_index = index
-
-            pose_instance = pose_array_tensor[0, index // cols, index % cols]
+        for (row_idx, col_idx), object_name in placement_list:
+            index = self.cfg.object_id_dict[object_name]
+            pose_instance = pose_array_tensor[0, row_idx, col_idx]
             positions = pose_instance[:3] + self.scene.env_origins[env_ids, 0:3]
-            object_ids = self._object_collection.find_objects(name_keys=asset_name)
+            object_ids = self._object_collection.find_objects(name_keys=object_name)
             self._object_collection.write_object_link_state_to_sim(
                 torch.cat((positions, orientations, velocities), dim=1).unsqueeze(1),
                 env_ids=env_ids,
                 object_ids=object_ids[0],
             )
+
+        for index, object_name in enumerate(rest_objects):
+            pose_instance = pose_array_tensor[0, index // cols, index % cols]
+            positions = pose_instance[:3] + self.scene.env_origins[env_ids, 0:3]
+
+            positions[:, 2] = 1.8
+            object_ids = self._object_collection.find_objects(name_keys=object_name)
+            self._object_collection.write_object_link_state_to_sim(
+                torch.cat((positions, orientations, velocities), dim=1).unsqueeze(1),
+                env_ids=env_ids,
+                object_ids=object_ids[0],
+            )
+
+    def get_category(self, item_name):
+        for category, items in self.cfg.object_category.items():
+            if item_name in items:
+                return category
+        return None
+
+        # for index, asset_name in enumerate(asset_keys_list):
+        #     if asset_name == target_object_name:
+        #         target_index = index
+
+        #     pose_instance = pose_array_tensor[0, index // cols, index % cols]
+        #     positions = pose_instance[:3] + self.scene.env_origins[env_ids, 0:3]
+        #     object_ids = self._object_collection.find_objects(name_keys=asset_name)
+        #     self._object_collection.write_object_link_state_to_sim(
+        #         torch.cat((positions, orientations, velocities), dim=1).unsqueeze(1),
+        #         env_ids=env_ids,
+        #         object_ids=object_ids[0],
+        #     )
