@@ -6,12 +6,10 @@
 from __future__ import annotations
 
 import math
-from llvmlite.binding.value import Visibility
 import torch
 from collections.abc import Sequence
 import random
 import os
-import numpy as np
 
 from omni.isaac.lab_assets.cart_double_pendulum import CART_DOUBLE_PENDULUM_CFG
 
@@ -25,6 +23,7 @@ from omni.isaac.lab.assets import (
     RigidObject,
     RigidObjectCollection,
 )
+
 from omni.isaac.lab.envs import DirectRLEnv, DirectRLEnvCfg
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.sim import SimulationCfg
@@ -39,13 +38,23 @@ from omni.isaac.lab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 
 from src_utils.shelf_utils import load_yaml_config, load_and_reshape_pose
 from random import shuffle, choice
+import omni.isaac.lab.sim as sim_utils
+from omni.isaac.lab.sensors import TiledCamera, TiledCameraCfg, save_images_to_file
+from torchvision.transforms import Normalize
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+from torchvision.models.segmentation import fcn_resnet50
+from torch import nn
+from PIL import Image
 
 
 @configclass
-class DirectShelfEnvCfg(DirectRLEnvCfg):
+class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     # env
-    decimation = 2
-    episode_length_s = 5.0
+    decimation = 80 # 기존 2
+    episode_length_s = 7.0 # 기존 5.0
     action_space = [{3}, {12}]
     observation_space = 1
     state_space = 0
@@ -61,7 +70,7 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
     shelf: RigidObjectCfg = RigidObjectCfg(
         prim_path="/World/envs/env_.*/Shelf",
         spawn=sim_utils.UsdFileCfg(
-            usd_path=f"omniverse://localhost/Library/Shelf/Arena/speedrack.usd",
+            usd_path=f"omniverse://localhost/Library/Shelf/Arena/speedrack2.usd",
             mass_props=MassPropertiesCfg(mass=100),
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
@@ -72,12 +81,26 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
 
     # YAML 파일 로드
     object_cfgs = load_yaml_config(
-<<<<<<< HEAD
-        yaml_path="src/shelf_policy/params/environment_highlevel.yaml"
-=======
         yaml_path="src/shelf_policy/params/environment.yaml"
->>>>>>> IROL_SKY
     )
+    
+    # 카메라
+    tiled_camera: TiledCameraCfg = TiledCameraCfg(
+        prim_path="/World/envs/env_.*/Camera",
+        offset=TiledCameraCfg.OffsetCfg(pos=(0.48, 0.0, 1.27), rot=(0.0, 0.0169289, 0.0, 0.9998567), convention="world"),
+        data_types=["rgb"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 1.0e5)
+        ),
+        width=640,
+        height=480,
+    )
+    write_image_to_file = True
+    
+    mean=[0.650085384273529, 0.6429061861377292, 0.6164081222491794]
+    std=[0.1687737046184826, 0.1750711261287332, 0.19902168659025637]
+    
+    MODEL_PATH = "/home/haneul/IsaacLab_IROL/src/High_level_policy_direct/FCN_model/best_model.pth"
 
     rigid_obj_dict = {}
     # 객체 정보 및 Pose 정보 가져오기
@@ -128,34 +151,37 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
     pose_array = load_and_reshape_pose(object_pose_dict)
     asset_dict: dict = rigid_obj_dict
 
-<<<<<<< HEAD
-    target_row_index = 3
-    spawn_probability = 0.15
-    visibility_probability = 0.2
 
-=======
->>>>>>> IROL_SKY
-
-class DirectShelfEnv(DirectRLEnv):
-    cfg: DirectShelfEnvCfg
+class HighlevelDirectEnv(DirectRLEnv):
+    cfg: HighlevelDirectEnvCfg
 
     def __init__(
-        self, cfg: DirectShelfEnvCfg, render_mode: str | None = None, **kwargs
+        self, cfg: HighlevelDirectEnvCfg, render_mode: str | None = None, **kwargs
     ):
         super().__init__(cfg, render_mode, **kwargs)
 
         self.target_id = torch.zeros(self.num_envs, 1, device=self.device)
-<<<<<<< HEAD
-        self.action_commands = torch.tensor(
-            [
-                [0, 0, 0.75],  # Action 0
-                [0, 0.15, 0],  # Action 1
-                [0, -0.15, 0],  # Action 2
-            ],
-            device=self.device,
-        )
-=======
->>>>>>> IROL_SKY
+        self.previous_distribution = torch.zeros(self.num_envs, 640, device=self.device)
+        self.column_distribution = torch.zeros(self.num_envs, 4, device=self.device)
+        
+        class FCNModel(nn.Module):
+            def __init__(self):
+                super(FCNModel, self).__init__()
+                # weights=None로 설정하여 pretrained 모델 사용하지 않음
+                self.model = fcn_resnet50(weights=None)
+                # 분류기 마지막 레이어를 원하는 클래스 수로 변경 (여기서는 예시로 12 클래스 사용)
+                self.model.classifier[4] = nn.Conv2d(512, 12, kernel_size=1)
+
+            def forward(self, x):
+                return self.model(x)['out']
+        
+        self.fcn_model = FCNModel()
+        # 모델 파일 경로 (필요에 따라 cfg에 추가하거나 상수로 관리 가능)
+        state_dict = torch.load(self.cfg.MODEL_PATH, map_location=self.device)
+        # 불필요한 aux_classifier 관련 파라미터는 필터링
+        filtered_state_dict = {k: v for k, v in state_dict.items() if "aux_classifier" not in k}
+        self.fcn_model.load_state_dict(filtered_state_dict, strict=False)
+        self.fcn_model = self.fcn_model.to(self.device)
 
     def _setup_scene(self):
 
@@ -168,32 +194,67 @@ class DirectShelfEnv(DirectRLEnv):
         self.scene.clone_environments(copy_from_source=False)
         self.scene.filter_collisions(global_prim_paths=[])
         # add lights
-        light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
-        light_cfg.func("/World/Light", light_cfg)
+        light_cfg = sim_utils.DomeLightCfg(intensity=3000.0, color=(1.0, 1.0, 1.0))
+        light_cfg.func("/World/Light", light_cfg, translation=(-5, 0, 10))
+        light_cfg2 = sim_utils.DomeLightCfg(intensity=2700.0, color=(1.0, 1.0, 1.0))
+        light_cfg2.func("/World/Light2", light_cfg2, translation=(1.2, 0, 1.4))
+        
+        self._tiled_camera = TiledCamera(self.cfg.tiled_camera)
+        self.scene.sensors["tiled_camera"] = self._tiled_camera
+        
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
-<<<<<<< HEAD
-        self.actions = actions.to(torch.int)
-
-    def _apply_action(self) -> None:
-        policy = self.actions[:, 0]
-        items = self.actions[:, 1]
-
-        processed_position = self.action_commands[policy]
-        processed_items = items
-        
-        # Apply actions
-        cur_pos = self._object_collection.data.object_pos_w[]
-        self._object_collection.write_object_state_to_sim()
-        
-=======
         self.actions = torch.zeros(self.num_envs, 3, device=self.device)
 
     def _apply_action(self) -> None:
         pass
->>>>>>> IROL_SKY
 
     def _get_observations(self) -> dict:
+        camera_data = self._tiled_camera.data.output["rgb"]  # (N, H, W, C)
+        camera_data = camera_data / 255.0
+        camera_data = camera_data.permute(0, 3, 1, 2)
+        camera_data = Normalize(mean=self.cfg.mean, std=self.cfg.std)(camera_data)
+        camera_data = camera_data.to(self.device)  # GPU로 이동
+        target_id = self.target_id.squeeze(-1).long()  # (num_envs, 1) → (num_envs,)
+        self.fcn_model.eval()
+        with torch.no_grad():
+            fcn_output = self.fcn_model(camera_data)  # (N, num_classes, H, W)
+        pred = fcn_output[torch.arange(self.num_envs, device=self.device), target_id, :, :]
+        
+        # pred: (num_envs, H, 640)
+        B, H, W = pred.shape
+        # 각 환경별 전체 최대값 계산 → (B, 1, 1)
+        max_vals = pred.view(B, -1).max(dim=1)[0].view(B, 1, 1)
+        # 각 환경마다 최대값이 0보다 큰 경우에만 정규화 수행
+        normalized_preds = torch.where(max_vals > 0, pred / max_vals, pred)
+        gain = 2.0  # 비선형 가중치 적용을 위한 gain 값
+        weighted_preds = normalized_preds * torch.exp(-gain * (1 - normalized_preds))
+        # y축(행 방향, 즉 H축)으로 합산 → 각 환경별 분포: (B, W)
+        current_distributions = weighted_preds.sum(dim=1)  # shape: (num_envs, 640)
+        
+        # 각 환경별 분포를 개별적으로 업데이트 (이전 분포는 (num_envs, 640))
+        gamma = 0.7  # 현재 분포 반영 가중치
+        final_distribution = gamma * current_distributions + (1 - gamma) * self.previous_distribution
+        # 업데이트 후, 최종 분포를 그대로 (num_envs, 640) 형태로 유지
+        self.previous_distribution = final_distribution.detach()
+        
+        col1 = final_distribution[:, 0:185].max(dim=1)[0]   # 첫 번째 구간의 최대값 (shape: (num_envs,))
+        col2 = final_distribution[:, 185:320].max(dim=1)[0]   # 두 번째 구간
+        col3 = final_distribution[:, 320:455].max(dim=1)[0]   # 세 번째 구간
+        col4 = final_distribution[:, 455:640].max(dim=1)[0]   # 네 번째 구간
+        
+        self.column_distribution = torch.stack([col1, col2, col3, col4], dim=1)
+        
+        # print(f"Final distribution shape: {final_distribution.shape}")
+        # print(f"Column distribution shape: {self.column_distribution.shape}")
+        print(f"Colum distribution: {self.column_distribution[0]}")
+        print("-----------------------------")
+        
+        if self.cfg.write_image_to_file:
+            pred_to_save = pred.unsqueeze(-1)
+            save_images_to_file(pred_to_save, f"fcn_output.png")
+
+                
         obs = torch.zeros(self.num_envs, device=self.device)
 
         return {"policy": torch.clamp(obs, -5.0, 5.0)}
@@ -211,23 +272,13 @@ class DirectShelfEnv(DirectRLEnv):
         if env_ids is None:
             env_ids = self.cartpole._ALL_INDICES
         super()._reset_idx(env_ids)
+        
+        self.previous_distribution[env_ids, :].zero_()
+        self.column_distribution[env_ids, :].zero_()
+        
+        
         rows, cols = len(self.cfg.pose_array[0]), len(self.cfg.pose_array[0][0])
-<<<<<<< HEAD
-
-        # 사용자 입력 기준의 target_row_index를 배열 인덱스로 변환
-        if np.random.rand() < self.cfg.spawn_probability:
-            adjusted_target_row_index = np.random.choice(
-                [0, 1]
-            )  # 첫 번째(0) 또는 두 번째(1) 행 선택
-        else:
-            adjusted_target_row_index = (
-                self.cfg.target_row_index - 1
-            )  # 사람이 1~5로 입력한 값을 0~4로 변환
-
-        random_row = adjusted_target_row_index  # 0부터 rows-1까지 랜덤
-=======
         random_row = torch.randint(0, rows, (1,)).item()  # 0부터 rows-1까지 랜덤
->>>>>>> IROL_SKY
         random_col = torch.randint(0, cols, (1,)).item()  # 0부터 cols-1까지 랜덤
 
         target_object_id = self.cfg.object_id_dict[
@@ -237,15 +288,9 @@ class DirectShelfEnv(DirectRLEnv):
         self.target_id[env_ids, 0] = target_object_id
 
         target_object_name = self.cfg.object_id_dict_rev[str(target_object_id)]
-<<<<<<< HEAD
-
+        print(f"Target object: {target_object_name}")
         target_category = self.get_category(target_object_name)
         same_category_items = self.cfg.object_category[target_category].copy()
-        random.shuffle(same_category_items)
-=======
-        target_category = self.get_category(target_object_name)
-        same_category_items = self.cfg.object_category[target_category].copy()
->>>>>>> IROL_SKY
 
         similar_category = None
         if target_category in ["cup", "mug"]:
@@ -254,10 +299,6 @@ class DirectShelfEnv(DirectRLEnv):
             similar_category = "can" if target_category == "bottle" else "bottle"
 
         similar_category_items = self.cfg.object_category[similar_category].copy()
-<<<<<<< HEAD
-        random.shuffle(similar_category_items)
-=======
->>>>>>> IROL_SKY
 
         other_categories = set(self.cfg.object_category.keys()) - {
             target_category,
@@ -266,32 +307,15 @@ class DirectShelfEnv(DirectRLEnv):
         other_category_items = []
         for cat in other_categories:
             other_category_items.extend(self.cfg.object_category[cat])
-<<<<<<< HEAD
-        random.shuffle(other_category_items)
-=======
->>>>>>> IROL_SKY
 
         # 위치별로 배치할 오브젝트 리스트 생성
         placement_list = []
         used_items = {}
 
-<<<<<<< HEAD
-        empty_positions = set()
-        if np.random.rand() < self.cfg.visibility_probability:
-            for row_idx in range(random_row - 1, -1, -1):  # 타겟 객체보다 앞쪽 행(row)
-                empty_positions.add((row_idx, random_col))
-
-=======
->>>>>>> IROL_SKY
         # 이미 사용된 위치를 추적하기 위한 집합 # 타겟 위치 추가
         placement_list.append(((random_row, random_col), target_object_name))
         used_positions = {(random_row, random_col)}
 
-<<<<<<< HEAD
-        used_positions.update(empty_positions)
-
-=======
->>>>>>> IROL_SKY
         def place_items_with_weights(items, candidate_positions, position_weights):
             """아이템을 가중치 기반으로 배치하고 중복 발생 시 다른 유효한 자리를 재탐색."""
 
@@ -329,11 +353,7 @@ class DirectShelfEnv(DirectRLEnv):
         ):  # 타겟보다 뒤쪽(행 번호가 작은 방향)
             for col_offset in [-1, 0, 1]:  # 타겟 열 주변의 좌(-1), 정면(0), 우(1)
                 col_idx = random_col + col_offset  # 열 계산
-<<<<<<< HEAD
-                if 0 <= col_idx < cols:  # 유효한 열인지 확인
-=======
                 if 0 <= col_idx < rows:  # 유효한 열인지 확인
->>>>>>> IROL_SKY
                     same_category_positions.append((row_idx, col_idx))  # 위치 저장
 
         # 중심 열에 더 높은 가중치를 부여
@@ -350,11 +370,7 @@ class DirectShelfEnv(DirectRLEnv):
         position_weights = []
 
         for col_idx in similar_cols:
-<<<<<<< HEAD
-            if 0 <= col_idx < cols:
-=======
             if 0 <= col_idx < rows:
->>>>>>> IROL_SKY
                 for row_idx in range(rows):
                     similar_category_positions.append((row_idx, col_idx))
                     position_weights.append(5.0)
@@ -431,16 +447,3 @@ class DirectShelfEnv(DirectRLEnv):
             if item_name in items:
                 return category
         return None
-
-        # for index, asset_name in enumerate(asset_keys_list):
-        #     if asset_name == target_object_name:
-        #         target_index = index
-
-        #     pose_instance = pose_array_tensor[0, index // cols, index % cols]
-        #     positions = pose_instance[:3] + self.scene.env_origins[env_ids, 0:3]
-        #     object_ids = self._object_collection.find_objects(name_keys=asset_name)
-        #     self._object_collection.write_object_link_state_to_sim(
-        #         torch.cat((positions, orientations, velocities), dim=1).unsqueeze(1),
-        #         env_ids=env_ids,
-        #         object_ids=object_ids[0],
-        #     )

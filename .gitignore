@@ -338,3 +338,14 @@ _build
 *.png
 *.npy
 *.json
+# Custom ignore
+*.pth
+*.pt
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.obj
+*.usd
