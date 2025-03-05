@@ -5,7 +5,7 @@
 
 ```bash
 git add .
-git commit -m "<YOUR-COMMENT>
+git commit -m "<YOUR-COMMENT>"
 git push origin IROL_SKY
 ```
 
@@ -16,3 +16,7 @@ git branch -a
 git checkout <YOUR-BRANCH>
 ```
 
+- Update remote branch
+```bash
+git remote update
+```
