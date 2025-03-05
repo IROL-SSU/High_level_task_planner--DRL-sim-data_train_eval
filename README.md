@@ -35,3 +35,16 @@ git add .
 git commit -m "<YOUR-COMMENT>"
 git push origin master
 ```
+
+- Come back to YOUR BRANCH
+```bash
+git checkout <YOUR-BRANCH>
+```
+
+- Merge master
+```bash
+git merge master
+git add .
+git commit -m "<YOUR-COMMNET>"
+git push origin <YOUR-BRANCH>
+```
