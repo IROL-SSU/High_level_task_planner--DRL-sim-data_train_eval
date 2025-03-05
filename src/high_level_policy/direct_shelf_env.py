@@ -6,10 +6,12 @@
 from __future__ import annotations
 
 import math
+from llvmlite.binding.value import Visibility
 import torch
 from collections.abc import Sequence
 import random
 import os
+import numpy as np
 
 from omni.isaac.lab_assets.cart_double_pendulum import CART_DOUBLE_PENDULUM_CFG
 
@@ -122,6 +124,10 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
     pose_array = load_and_reshape_pose(object_pose_dict)
     asset_dict: dict = rigid_obj_dict
 
+    target_row_index = 3
+    spawn_probability = 0.15
+    visibility_probability = 0.2
+
 
 class DirectShelfEnv(DirectRLEnv):
     cfg: DirectShelfEnvCfg
@@ -159,6 +165,17 @@ class DirectShelfEnv(DirectRLEnv):
         return {"policy": torch.clamp(obs, -5.0, 5.0)}
 
     def _get_rewards(self) -> torch.Tensor:
+        object_pos_w = self._object_collection.data.object_pos_w
+
+        target_object_id = self.cfg.object_id_dict[
+            choice(list(self.cfg.asset_dict.keys()))
+        ]
+
+        target_object_name = self.cfg.object_id_dict_rev[str(target_object_id)]
+        print(target_object_name)
+
+        # target_pos_w = self._object_collection.data.object_pos_w[target_object_id]
+
         # Refresh the intermediate values after the physics steps
         return torch.zeros(self.num_envs, device=self.device)
 
@@ -172,7 +189,18 @@ class DirectShelfEnv(DirectRLEnv):
             env_ids = self.cartpole._ALL_INDICES
         super()._reset_idx(env_ids)
         rows, cols = len(self.cfg.pose_array[0]), len(self.cfg.pose_array[0][0])
-        random_row = torch.randint(0, rows, (1,)).item()  # 0부터 rows-1까지 랜덤
+
+        # 사용자 입력 기준의 target_row_index를 배열 인덱스로 변환
+        if np.random.rand() < self.cfg.spawn_probability:
+            adjusted_target_row_index = np.random.choice(
+                [0, 1]
+            )  # 첫 번째(0) 또는 두 번째(1) 행 선택
+        else:
+            adjusted_target_row_index = (
+                self.cfg.target_row_index - 1
+            )  # 사람이 1~5로 입력한 값을 0~4로 변환
+
+        random_row = adjusted_target_row_index  # 0부터 rows-1까지 랜덤
         random_col = torch.randint(0, cols, (1,)).item()  # 0부터 cols-1까지 랜덤
 
         target_object_id = self.cfg.object_id_dict[
@@ -182,8 +210,11 @@ class DirectShelfEnv(DirectRLEnv):
         self.target_id[env_ids, 0] = target_object_id
 
         target_object_name = self.cfg.object_id_dict_rev[str(target_object_id)]
+
+        print(target_object_name)
         target_category = self.get_category(target_object_name)
         same_category_items = self.cfg.object_category[target_category].copy()
+        random.shuffle(same_category_items)
 
         similar_category = None
         if target_category in ["cup", "mug"]:
@@ -192,6 +223,7 @@ class DirectShelfEnv(DirectRLEnv):
             similar_category = "can" if target_category == "bottle" else "bottle"
 
         similar_category_items = self.cfg.object_category[similar_category].copy()
+        random.shuffle(similar_category_items)
 
         other_categories = set(self.cfg.object_category.keys()) - {
             target_category,
@@ -200,14 +232,22 @@ class DirectShelfEnv(DirectRLEnv):
         other_category_items = []
         for cat in other_categories:
             other_category_items.extend(self.cfg.object_category[cat])
+        random.shuffle(other_category_items)
 
         # 위치별로 배치할 오브젝트 리스트 생성
         placement_list = []
         used_items = {}
 
+        empty_positions = set()
+        if np.random.rand() < self.cfg.visibility_probability:
+            for row_idx in range(random_row - 1, -1, -1):  # 타겟 객체보다 앞쪽 행(row)
+                empty_positions.add((row_idx, random_col))
+
         # 이미 사용된 위치를 추적하기 위한 집합 # 타겟 위치 추가
         placement_list.append(((random_row, random_col), target_object_name))
         used_positions = {(random_row, random_col)}
+
+        used_positions.update(empty_positions)
 
         def place_items_with_weights(items, candidate_positions, position_weights):
             """아이템을 가중치 기반으로 배치하고 중복 발생 시 다른 유효한 자리를 재탐색."""
@@ -246,7 +286,7 @@ class DirectShelfEnv(DirectRLEnv):
         ):  # 타겟보다 뒤쪽(행 번호가 작은 방향)
             for col_offset in [-1, 0, 1]:  # 타겟 열 주변의 좌(-1), 정면(0), 우(1)
                 col_idx = random_col + col_offset  # 열 계산
-                if 0 <= col_idx < rows:  # 유효한 열인지 확인
+                if 0 <= col_idx < cols:  # 유효한 열인지 확인
                     same_category_positions.append((row_idx, col_idx))  # 위치 저장
 
         # 중심 열에 더 높은 가중치를 부여
@@ -263,7 +303,7 @@ class DirectShelfEnv(DirectRLEnv):
         position_weights = []
 
         for col_idx in similar_cols:
-            if 0 <= col_idx < rows:
+            if 0 <= col_idx < cols:
                 for row_idx in range(rows):
                     similar_category_positions.append((row_idx, col_idx))
                     position_weights.append(5.0)
