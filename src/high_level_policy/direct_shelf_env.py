@@ -138,6 +138,14 @@ class DirectShelfEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
 
         self.target_id = torch.zeros(self.num_envs, 1, device=self.device)
+        self.action_commands = torch.tensor(
+            [
+                [0, 0, 0.75],  # Action 0
+                [0, 0.15, 0],  # Action 1
+                [0, -0.15, 0],  # Action 2
+            ],
+            device=self.device,
+        )
 
     def _setup_scene(self):
 
@@ -154,10 +162,19 @@ class DirectShelfEnv(DirectRLEnv):
         light_cfg.func("/World/Light", light_cfg)
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
-        self.actions = torch.zeros(self.num_envs, 3, device=self.device)
+        self.actions = actions.to(torch.int)
 
     def _apply_action(self) -> None:
-        pass
+        policy = self.actions[:, 0]
+        items = self.actions[:, 1]
+
+        processed_position = self.action_commands[policy]
+        processed_items = items
+        
+        # Apply actions
+        cur_pos = self._object_collection.data.object_pos_w[]
+        self._object_collection.write_object_state_to_sim()
+        
 
     def _get_observations(self) -> dict:
         obs = torch.zeros(self.num_envs, device=self.device)
@@ -200,7 +217,6 @@ class DirectShelfEnv(DirectRLEnv):
 
         target_object_name = self.cfg.object_id_dict_rev[str(target_object_id)]
 
-        print(target_object_name)
         target_category = self.get_category(target_object_name)
         same_category_items = self.cfg.object_category[target_category].copy()
         random.shuffle(same_category_items)
