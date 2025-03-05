@@ -27,16 +27,22 @@ pose:
     mug_3: [-0.56, 0.30, 1.05, 1.0, 0.0, 0.0, 0.0]
 
 id:
-    cup_1: 0
-    cup_2: 1
-    cup_3: 2
-    mug_1: 3
-    mug_2: 4
-    mug_3: 5
-    can_1: 6
-    can_2: 7
-    can_3: 8
+    can_1: 0
+    can_2: 1
+    can_3: 2
+    cup_1: 3
+    cup_2: 4
+    cup_3: 5
+    mug_1: 6
+    mug_2: 7
+    mug_3: 8
     bottle_1: 9
     bottle_2: 10
     bottle_3: 11
+
+category:
+    bottle: [bottle_1, bottle_2, bottle_3]
+    can: [can_1, can_2, can_3]
+    cup: [cup_1, cup_2, cup_3]
+    mug: [mug_1, mug_2, mug_3]
     

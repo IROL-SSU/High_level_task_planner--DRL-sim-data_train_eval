@@ -333,3 +333,15 @@ _build
 **/runs/*
 **/logs/*
 **/recordings/*
+
+# Custom ignore
+*.pth
+*.pt
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.obj
+*.usd
