@@ -72,11 +72,7 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
 
     # YAML 파일 로드
     object_cfgs = load_yaml_config(
-<<<<<<< HEAD
         yaml_path="src/shelf_policy/params/environment_highlevel.yaml"
-=======
-        yaml_path="src/shelf_policy/params/environment.yaml"
->>>>>>> IROL_SKY
     )
 
     rigid_obj_dict = {}
@@ -128,13 +124,10 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
     pose_array = load_and_reshape_pose(object_pose_dict)
     asset_dict: dict = rigid_obj_dict
 
-<<<<<<< HEAD
     target_row_index = 3
     spawn_probability = 0.15
     visibility_probability = 0.2
 
-=======
->>>>>>> IROL_SKY
 
 class DirectShelfEnv(DirectRLEnv):
     cfg: DirectShelfEnvCfg
@@ -145,7 +138,6 @@ class DirectShelfEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
 
         self.target_id = torch.zeros(self.num_envs, 1, device=self.device)
-<<<<<<< HEAD
         self.action_commands = torch.tensor(
             [
                 [0, 0, 0.75],  # Action 0
@@ -154,8 +146,6 @@ class DirectShelfEnv(DirectRLEnv):
             ],
             device=self.device,
         )
-=======
->>>>>>> IROL_SKY
 
     def _setup_scene(self):
 
@@ -172,7 +162,6 @@ class DirectShelfEnv(DirectRLEnv):
         light_cfg.func("/World/Light", light_cfg)
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
-<<<<<<< HEAD
         self.actions = actions.to(torch.int)
 
     def _apply_action(self) -> None:
@@ -186,12 +175,6 @@ class DirectShelfEnv(DirectRLEnv):
         cur_pos = self._object_collection.data.object_pos_w[]
         self._object_collection.write_object_state_to_sim()
         
-=======
-        self.actions = torch.zeros(self.num_envs, 3, device=self.device)
-
-    def _apply_action(self) -> None:
-        pass
->>>>>>> IROL_SKY
 
     def _get_observations(self) -> dict:
         obs = torch.zeros(self.num_envs, device=self.device)
@@ -212,7 +195,6 @@ class DirectShelfEnv(DirectRLEnv):
             env_ids = self.cartpole._ALL_INDICES
         super()._reset_idx(env_ids)
         rows, cols = len(self.cfg.pose_array[0]), len(self.cfg.pose_array[0][0])
-<<<<<<< HEAD
 
         # 사용자 입력 기준의 target_row_index를 배열 인덱스로 변환
         if np.random.rand() < self.cfg.spawn_probability:
@@ -225,9 +207,6 @@ class DirectShelfEnv(DirectRLEnv):
             )  # 사람이 1~5로 입력한 값을 0~4로 변환
 
         random_row = adjusted_target_row_index  # 0부터 rows-1까지 랜덤
-=======
-        random_row = torch.randint(0, rows, (1,)).item()  # 0부터 rows-1까지 랜덤
->>>>>>> IROL_SKY
         random_col = torch.randint(0, cols, (1,)).item()  # 0부터 cols-1까지 랜덤
 
         target_object_id = self.cfg.object_id_dict[
@@ -237,15 +216,10 @@ class DirectShelfEnv(DirectRLEnv):
         self.target_id[env_ids, 0] = target_object_id
 
         target_object_name = self.cfg.object_id_dict_rev[str(target_object_id)]
-<<<<<<< HEAD
 
         target_category = self.get_category(target_object_name)
         same_category_items = self.cfg.object_category[target_category].copy()
         random.shuffle(same_category_items)
-=======
-        target_category = self.get_category(target_object_name)
-        same_category_items = self.cfg.object_category[target_category].copy()
->>>>>>> IROL_SKY
 
         similar_category = None
         if target_category in ["cup", "mug"]:
@@ -254,10 +228,7 @@ class DirectShelfEnv(DirectRLEnv):
             similar_category = "can" if target_category == "bottle" else "bottle"
 
         similar_category_items = self.cfg.object_category[similar_category].copy()
-<<<<<<< HEAD
         random.shuffle(similar_category_items)
-=======
->>>>>>> IROL_SKY
 
         other_categories = set(self.cfg.object_category.keys()) - {
             target_category,
@@ -266,32 +237,23 @@ class DirectShelfEnv(DirectRLEnv):
         other_category_items = []
         for cat in other_categories:
             other_category_items.extend(self.cfg.object_category[cat])
-<<<<<<< HEAD
         random.shuffle(other_category_items)
-=======
->>>>>>> IROL_SKY
 
         # 위치별로 배치할 오브젝트 리스트 생성
         placement_list = []
         used_items = {}
 
-<<<<<<< HEAD
         empty_positions = set()
         if np.random.rand() < self.cfg.visibility_probability:
             for row_idx in range(random_row - 1, -1, -1):  # 타겟 객체보다 앞쪽 행(row)
                 empty_positions.add((row_idx, random_col))
 
-=======
->>>>>>> IROL_SKY
         # 이미 사용된 위치를 추적하기 위한 집합 # 타겟 위치 추가
         placement_list.append(((random_row, random_col), target_object_name))
         used_positions = {(random_row, random_col)}
 
-<<<<<<< HEAD
         used_positions.update(empty_positions)
 
-=======
->>>>>>> IROL_SKY
         def place_items_with_weights(items, candidate_positions, position_weights):
             """아이템을 가중치 기반으로 배치하고 중복 발생 시 다른 유효한 자리를 재탐색."""
 
@@ -329,11 +291,7 @@ class DirectShelfEnv(DirectRLEnv):
         ):  # 타겟보다 뒤쪽(행 번호가 작은 방향)
             for col_offset in [-1, 0, 1]:  # 타겟 열 주변의 좌(-1), 정면(0), 우(1)
                 col_idx = random_col + col_offset  # 열 계산
-<<<<<<< HEAD
                 if 0 <= col_idx < cols:  # 유효한 열인지 확인
-=======
-                if 0 <= col_idx < rows:  # 유효한 열인지 확인
->>>>>>> IROL_SKY
                     same_category_positions.append((row_idx, col_idx))  # 위치 저장
 
         # 중심 열에 더 높은 가중치를 부여
@@ -350,11 +308,7 @@ class DirectShelfEnv(DirectRLEnv):
         position_weights = []
 
         for col_idx in similar_cols:
-<<<<<<< HEAD
             if 0 <= col_idx < cols:
-=======
-            if 0 <= col_idx < rows:
->>>>>>> IROL_SKY
                 for row_idx in range(rows):
                     similar_category_positions.append((row_idx, col_idx))
                     position_weights.append(5.0)
