@@ -16,7 +16,22 @@ git branch -a
 git checkout <YOUR-BRANCH>
 ```
 
-- Update remote branch
+- Update remote branch & update master branch (sync to remote)
 ```bash
 git remote update
+git checkout master
+git pull origin master
+```
+
+```bash
+git merge <YOUR-BRANCH>
+```
+
+> Conflict Fixing
+
+- Push to master branch
+```bash
+git add .
+git commit -m "<YOUR-COMMENT>"
+git push origin master
 ```
