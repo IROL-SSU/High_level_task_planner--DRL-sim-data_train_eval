@@ -24,10 +24,6 @@ class DynamicObjectGoalPosCommandCfg(CommandTermCfg):
 
     init_pos_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
-    position_success_threshold: float = MISSING
-
-    update_goal_on_success: bool = MISSING
-
     marker_pos_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
     goal_pose_visualizer_cfg: VisualizationMarkersCfg = FRAME_MARKER_CFG.replace(prim_path="/Visuals/Command/goal_pose")

@@ -26,7 +26,6 @@ def MA_object_position_in_RRF(
         env: ManagerBasedRLEnv,
         robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
         object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
-        asset_dict: dict = MISSING,
         object_id_dict_rev: dict = MISSING,
 )-> torch.Tensor:
     """
@@ -35,22 +34,19 @@ def MA_object_position_in_RRF(
 
     robot: RigidObject = env.scene[robot_cfg.name]
     object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
-    
-    # Retrieve the target object name based on its ID
-    target_obj = object_id_dict_rev[str(env.target_id)]
 
-    # Find the corresponding object ID in the collection
-    target_id = object_collection.find_objects(name_keys=target_obj)
+    # Get the target IDs directly from the environment tensor
+    target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
 
     # Get the world state(position, orientation, linear velocity, angular velocity); R^13
-    target_state_w = object_collection.data.object_state_w[:, target_id[0]]
+    target_state_w = object_collection.data.object_state_w[torch.arange(env.scene.num_envs), target_ids]
 
     # Compute the position of the target object relative to the robot
     # (Transforms the target object’s position from the world frame to the robot’s base frame)
     object_pos_b, _ = subtract_frame_transforms(
         robot.data.root_state_w[:, :3], # Robot's position in the world frame  
         robot.data.root_state_w[:, 3:7], # Robot's orientation in the world frame (quaternion) 
-        target_state_w[..., 0,:3] # Target object's position in the world frame
+        target_state_w[:, :3] # Target object's position in the world frame
     )
 
     return object_pos_b

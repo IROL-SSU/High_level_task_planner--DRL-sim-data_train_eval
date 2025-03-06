@@ -1,0 +1,43 @@
+objects:
+    bottle_1 : omniverse://localhost/Library/Shelf/Object/Bottle_6.usd
+    bottle_2 : omniverse://localhost/Library/Shelf/Object/Bottle_7.usd
+    bottle_3 : omniverse://localhost/Library/Shelf/Object/Bottle_8.usd
+    can_1: omniverse://localhost/Library/Shelf/Object/Can_6.usd
+    can_2: omniverse://localhost/Library/Shelf/Object/Can_7.usd
+    can_3: omniverse://localhost/Library/Shelf/Object/Can_8.usd
+    cup_1: omniverse://localhost/Library/Shelf/Object/Cup_1.usd
+    cup_2: omniverse://localhost/Library/Shelf/Object/Cup_2.usd
+    cup_3: omniverse://localhost/Library/Shelf/Object/Cup_4.usd
+    mug_1: omniverse://localhost/Library/Shelf/Object/Mug_2.usd
+    mug_2: omniverse://localhost/Library/Shelf/Object/Mug_3.usd
+    mug_3: omniverse://localhost/Library/Shelf/Object/Mug_4.usd
+
+pose:
+
+    # bottle1 : [-0.65, -0.3, 0.98, 1.0, 0.0, 0.0, 0.0]
+    # bottle2 : [-0.65, -0.1, 0.98, 1.0, 0.0, 0.0, 0.0]
+    # bottle3 : [-0.65, 0.1, 0.98, 1.0, 0.0, 0.0, 0.0]
+    # can_1: [-0.65, 0.3, 0.98, 1.0, 0.0, 0.0, 0.0]
+    # can_2: [-0.5, -0.3, 0.98, 1.0, 0.0, 0.0, 0.0]
+    # can_3: [-0.5, -0.1, 0.98, 1.0, 0.0, 0.0, 0.0]
+    cup_1: [-0.75, -0.2, 1.0, 1.0, 0.0, 0.0, 0.0]
+    cup_2: [-0.75, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+    cup_3: [-0.75, 0.2, 1.0, 1.0, 0.0, 0.0, 0.0]
+    mug1: [-0.6, -0.2, 1.0, 1.0, 0.0, 0.0, 0.0]
+    mug2: [-0.6, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+    mug3: [-0.6, 0.2, 1.0, 1.0, 0.0, 0.0, 0.0]
+
+id:
+    cup_1: 0
+    cup_2: 1
+    cup_3: 2
+    mug_1: 3
+    mug_2: 4
+    mug_3: 5
+    can_1: 6
+    can_2: 7
+    can_3: 8
+    bottle_1: 9
+    bottle_2: 10
+    bottle_3: 11
+    

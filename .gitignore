@@ -338,3 +338,19 @@ _build
 **/runs/*
 **/logs/*
 **/recordings/*
+
+# dataset
+*.png
+*.npy
+*.json
+# Custom ignore
+*.pth
+*.pt
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.obj
+*.usd
