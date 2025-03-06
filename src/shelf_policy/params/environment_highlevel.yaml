@@ -1,7 +1,4 @@
 objects:
-    bottle_1 : omniverse://localhost/Library/Shelf/Object/Bottle_6.usd
-    bottle_2 : omniverse://localhost/Library/Shelf/Object/Bottle_7.usd
-    bottle_3 : omniverse://localhost/Library/Shelf/Object/Bottle_8.usd
     can_1: omniverse://localhost/Library/Shelf/Object/Can_6.usd
     can_2: omniverse://localhost/Library/Shelf/Object/Can_7.usd
     can_3: omniverse://localhost/Library/Shelf/Object/Can_8.usd
@@ -11,6 +8,9 @@ objects:
     mug_1: omniverse://localhost/Library/Shelf/Object/Mug_2.usd
     mug_2: omniverse://localhost/Library/Shelf/Object/Mug_3.usd
     mug_3: omniverse://localhost/Library/Shelf/Object/Mug_4.usd
+    bottle_1 : omniverse://localhost/Library/Shelf/Object/Bottle_6.usd
+    bottle_2 : omniverse://localhost/Library/Shelf/Object/Bottle_7.usd
+    bottle_3 : omniverse://localhost/Library/Shelf/Object/Bottle_8.usd
 
 pose:
     bottle_1 : [-0.82, -0.34, 1.05, 1.0, 0.0, 0.0, 0.0]

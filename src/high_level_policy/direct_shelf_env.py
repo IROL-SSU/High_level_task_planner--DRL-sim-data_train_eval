@@ -44,7 +44,7 @@ from random import shuffle, choice
 @configclass
 class DirectShelfEnvCfg(DirectRLEnvCfg):
     # env
-    decimation = 2
+    decimation = 150
     episode_length_s = 5.0
     action_space = [{3}, {12}]
     observation_space = 1
@@ -61,7 +61,7 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
     shelf: RigidObjectCfg = RigidObjectCfg(
         prim_path="/World/envs/env_.*/Shelf",
         spawn=sim_utils.UsdFileCfg(
-            usd_path=f"omniverse://localhost/Library/Shelf/Arena/speedrack.usd",
+            usd_path=f"omniverse://localhost/Library/Shelf/Arena/speedrack3.usd",
             mass_props=MassPropertiesCfg(mass=100),
         ),
         init_state=RigidObjectCfg.InitialStateCfg(
@@ -138,11 +138,14 @@ class DirectShelfEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
 
         self.target_id = torch.zeros(self.num_envs, 1, device=self.device)
+        self.shelf_object_config = torch.full((self.num_envs, 3, 4), -1, device=self.device) # 각 환경별로 shelf의 object 위치(object id가 0부터 시작하므로 -1로 초기화)
+        self.shelf_front_object = torch.full((self.num_envs, 4), -1, device=self.device) # 각 환경별로 shelf의 앞쪽 object id
+
         self.action_commands = torch.tensor(
             [
-                [0, 0, 0.75],  # Action 0
-                [0, 0.15, 0],  # Action 1
-                [0, -0.15, 0],  # Action 2
+                [0, 0, 1.05],  # Action 0
+                [0, 0.21, 0],  # Action 1
+                [0, -0.21, 0],  # Action 2
             ],
             device=self.device,
         )
@@ -163,17 +166,37 @@ class DirectShelfEnv(DirectRLEnv):
 
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.actions = actions.to(torch.int)
+        
 
-    def _apply_action(self) -> None:
+        random_ids = torch.randint(0, 12, (self.num_envs,), device='cuda:0')
+        self.actions[:, 1] = random_ids
         policy = self.actions[:, 0]
         items = self.actions[:, 1]
-
         processed_position = self.action_commands[policy]
-        processed_items = items
+        # 올바르게 인덱스 지정 (차원 문제 해결)
+        self._processed_items = items.long().unsqueeze(-1)  # (2, 1) 형태
+
+        # 인덱싱 시 중복 방지
+        self._obj_state_w = self._object_collection.data.object_state_w[
+            torch.arange(self._object_collection.data.object_state_w.shape[0]),
+            self._processed_items.squeeze(-1),
+        ].clone()
+
+        self._obj_state_w[:, :3] = self._obj_state_w[:, :3] + processed_position[:, :3]
+
+        # if self.actions[0, 0] == 0:
+        #     self.shelf_object_config[:, 2, update_idx] = random_object_id
+
         
-        # Apply actions
-        cur_pos = self._object_collection.data.object_pos_w[]
-        self._object_collection.write_object_state_to_sim()
+
+
+        self._object_collection.write_object_state_to_sim(
+            object_state=self._obj_state_w.unsqueeze(1),
+            object_ids=self._processed_items,
+        )
+
+    def _apply_action(self) -> None:
+        pass
         
 
     def _get_observations(self) -> dict:
@@ -379,6 +402,29 @@ class DirectShelfEnv(DirectRLEnv):
                 env_ids=env_ids,
                 object_ids=object_ids[0],
             )
+
+        # 1. placement_list에서 좌표와 object name 추출
+        # 좌표 리스트와 object name 리스트로 분리함
+        coords_list = [list(pos) for pos, _ in placement_list]  # shape: (N, 2)
+        obj_names_list = [obj_name for _, obj_name in placement_list]  # 길이: N
+        
+        # 2. 좌표 텐서 생성
+        coords = torch.tensor(coords_list, device=self.device)  # (N, 2)
+        num_rows = self.shelf_object_config.shape[1] # shelf_object_config의 행 개수
+        coords[:, 0] = (num_rows - 1) - coords[:, 0] # placement_list의 좌표는 왼쪽 아래가 0,0이므로, shelf_object_config (왼쪽 위가 0,0)에 맞추기 위해 행 인덱스 반전
+        obj_ids_list = [self.cfg.object_id_dict.get(obj_name, 0) for obj_name in obj_names_list] # object name을 object id로 변환
+        object_ids_tensor = torch.tensor(obj_ids_list, device=self.device) # object id 리스트를 텐서로 변환
+        expanded_coords = coords.unsqueeze(0).expand(env_ids.size(0), -1, -1)
+        expanded_object_ids = object_ids_tensor.unsqueeze(0).expand(env_ids.size(0), -1)
+        
+        # 값 채워넣기
+        self.shelf_object_config[env_ids] = -1 # 초기화 하는 환경만 -1로 초기화
+        self.shelf_object_config[env_ids.unsqueeze(1),
+                           expanded_coords[:, :, 0],
+                           expanded_coords[:, :, 1]] = expanded_object_ids
+        
+
+
 
     def get_category(self, item_name):
         for category, items in self.cfg.object_category.items():
