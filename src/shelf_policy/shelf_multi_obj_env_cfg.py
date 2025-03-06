@@ -145,7 +145,7 @@ class RewardsCfg:
     # action penalty
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
     joint_vel = RewTerm(
-        func=mdp.joint_vel_l2,
+        func=mdp.rewards_sweep_ur5e.joint_vel_l2,
         weight=-1e-4,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
@@ -165,9 +165,11 @@ class RewardsCfg:
                               params={"command_name": "target_goal_pos"}, 
                               weight=5.0)
     
-    sweeping_bonus = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_bonus, params={"command_name": "target_goal_pos"}, weight=5.0)
+    # sweeping_bonus = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_bonus, params={"command_name": "target_goal_pos"}, weight=7.0)
 
-    shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.2)
+    homing_after_sweep = RewTerm(func=mdp.rewards_sweep_ur5e.homing_reward, params={"command_name": "target_goal_pos"}, weight=12.0)
+
+    shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.3)
 
     object_collision = RewTerm(func=mdp.rewards_sweep_ur5e.object_collision, params={}, weight=-0.7)
 

@@ -4,3 +4,4 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from . import rsl_rl_cfg
+from . import rsl_rl_cfg_vel

@@ -17,7 +17,7 @@ class UR5eSweepingRunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 20000
     save_interval = 50
-    experiment_name = "UR5e_shelf_sweep"
+    experiment_name = "UR5e_shelf_sweep_vel"
     empirical_normalization = False
     seed = 0
     policy = RslRlPpoActorCriticCfg(

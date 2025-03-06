@@ -35,7 +35,7 @@ def load_and_reshape_pose(pose_dict):
 
     return tuple(map(tuple, pose_array.tolist()))
 if __name__ == "__main__":
-    yaml_path = "src/shelf_policy/params/environment.yaml"
+    yaml_path = "src/shelf_policy/params/environment_KTH.yaml"
     config = load_yaml_config(yaml_path)
     object_dict = config["objects"]
     pose_dict = config["pose"]

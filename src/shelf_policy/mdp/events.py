@@ -36,12 +36,12 @@ def randomize_scene(
     
     rows, cols = len(pose_array[0]), len(pose_array[0][0])
     object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
-    
-    target_object_id = object_id_dict[choice(list(asset_dict.keys()))]
 
-    env.target_id[env_ids, 0] = target_object_id
+    target_object_name = choice(list(asset_dict.keys()))
 
-    target_object_name = object_id_dict_rev[str(target_object_id)]
+    target_object_id = object_collection.find_objects(name_keys=target_object_name)
+
+    env.target_id[env_ids, 0] = target_object_id[0].to(env.target_id.dtype)
 
     asset_keys_list: list = list(asset_dict.keys())
 
@@ -70,7 +70,6 @@ def randomize_scene(
             object_ids=object_ids[0]
         )
 
-    
     if task_mode == "sweeping_right":
         adjacent_indices = sweeping_right_mode(target_index, rows, cols, env.device)
 
@@ -90,14 +89,14 @@ def randomize_scene(
             )
 
 
-def sweeping_right_mode(target_id: int, rows: int, cols: int, device):
+def sweeping_right_mode(target_index: int, rows: int, cols: int, device):
     """
     Identify objects in front, right, and diagonal positions of the target.
     If the target is in the last row, include all objects in the front rows.
     Returns results as a GPU Tensor.
     """
-    target_row = target_id // cols
-    target_col = target_id % cols
+    target_row = target_index // cols
+    target_col = target_index % cols
 
     # (1) 앞쪽 찾기 (모든 앞쪽 행 포함)
     if target_row > 0:

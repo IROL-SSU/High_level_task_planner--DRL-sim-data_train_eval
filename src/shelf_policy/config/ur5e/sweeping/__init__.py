@@ -5,7 +5,7 @@
 import gymnasium as gym
 import os
 
-from . import agents, joint_pos_env_cfg
+from . import agents, joint_pos_env_cfg, joint_vel_env_cfg
 
 ##
 # Register Gym environments.
@@ -24,3 +24,14 @@ gym.register(
     },
     disable_env_checker=True,
 )
+
+gym.register(
+    id="Isaac-Shelf-UR5e-MultiObj-Vel-v0",
+    entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
+    kwargs={
+        "env_cfg_entry_point": joint_vel_env_cfg.UR5eShelfEnvCfg,
+        "rsl_rl_cfg_entry_point": agents.rsl_rl_cfg_vel.UR5eSweepingRunnerCfg,
+    },
+    disable_env_checker=True,
+)
+

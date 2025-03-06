@@ -31,15 +31,16 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
     ee_pos_w = ee.data.target_pos_w
 
     offset_pos = target_pos_w.clone()
-    offset_pos[:, 0] = offset_pos[:, 0] 
+    offset_pos[:, 0] = offset_pos[:, 0] + 0.01
     offset_pos[:, 1] = offset_pos[:, 1] - 0.09
-    offset_pos[:, 2] = offset_pos[:, 2] + 0.07
+    offset_pos[:, 2] = offset_pos[:, 2] + 0.05
 
     distance = torch.norm((offset_pos[:, :3] - ee_pos_w[..., 0,:3]), dim=-1, p=2)
 
 
     # print(f"object: {offset_pos}")
     # print(f"hand: {ee_pos_w}")
+    # print(f"distance: {distance}")
 
 
     reward = torch.exp(-1.2 * distance)
@@ -101,14 +102,14 @@ def pushing_target(env: ManagerBasedRLEnv,
 
     ee_pos_w = ee.data.target_pos_w[..., 0, :]
     offset_pos = target_pos_w.clone()
-    offset_pos[:, 0] = offset_pos[:, 0] 
+    offset_pos[:, 0] = offset_pos[:, 0] + 0.01
     offset_pos[:, 1] = offset_pos[:, 1] - 0.09
-    offset_pos[:, 2] = offset_pos[:, 2] + 0.06
+    offset_pos[:, 2] = offset_pos[:, 2] + 0.05
 
     distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
-    zeta_m = torch.where((torch.norm(offset_pos - ee_pos_w, dim=-1, p=2)) < 0.03 , 1, 0)
-    vel_rew = torch.where(torch.abs(target_lin_vel_w[:, 1]) < 0.5, 4 * torch.abs(target_lin_vel_w[:, 1]) , -1)
-    reward = (1 - distance/0.15) + vel_rew
+    zeta_m = torch.where((torch.norm(offset_pos - ee_pos_w, dim=-1, p=2)) < 0.04 , 1, 0)
+    vel_rew = torch.where(torch.abs(target_lin_vel_w[:, 1]) < 0.04, 4 * torch.abs(target_lin_vel_w[:, 1]) , -1)
+    reward = torch.where(distance < 0.03, 1.5, zeta_m *((1 - distance/0.15) + vel_rew))
 
     # print(f"offset pos: {offset_pos}")
     # print(f"ee pos: {ee_pos_w}")
@@ -117,11 +118,13 @@ def pushing_target(env: ManagerBasedRLEnv,
     # print(f"current position: {curr_pos_w}")
     # print(f"goal_position: {des_pos_w}")
     # print(f"pushing distance: {distance}")
-    return torch.where(distance < 0.03, reward, zeta_m * reward)
+
+    return reward
 
 def pushing_bonus(env: ManagerBasedRLEnv, 
                 command_name: str,
-                object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),):
+                object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
+):
     
     object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
     command = env.command_manager.get_command(command_name)
@@ -133,9 +136,39 @@ def pushing_bonus(env: ManagerBasedRLEnv,
 
     # Get the world state(position, orientation, linear velocity, angular velocity); R^13
     target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids]
+
+    
     distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
 
+
     return torch.where(distance < 0.03, 1, 0)
+
+def homing_reward(env: ManagerBasedRLEnv,
+                  command_name: str,
+                  object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
+                  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),):
+    robot: Articulation = env.scene[asset_cfg.name]
+    object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+
+    command = env.command_manager.get_command(command_name)
+
+    target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
+
+    # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+    target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids]
+    
+    # obtain the desired and current positions
+    des_pos_w = command[:, :3]
+    distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
+    joint_pos_error = torch.sum(torch.abs(robot.data.joint_pos[:, : 6] - robot.data.default_joint_pos[:, :6]), dim=1)
+    reward_for_home_pose = 1.0 - torch.tanh(joint_pos_error/2.0)
+    
+    # print(f"joint error: {joint_pos_error}")
+    # reward_for_home_pose = torch.exp(-0.5 * joint_pos_error)
+    # print(f"joint reward: {torch.where(distance < 0.04, reward_for_home_pose, 0)}")
+    
+    return torch.where(distance < 0.03, reward_for_home_pose, 0)
+
     
 def object_collision(env: ManagerBasedRLEnv,
                 object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),)-> torch.Tensor:
@@ -210,3 +243,12 @@ class shelf_Collision(ManagerTermBase):
         R = zeta * (reward_l + reward_r + reward_wrist)
 
         return R
+    
+def joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize joint velocities on the articulation using L2 squared kernel.
+
+    NOTE: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their joint velocities contribute to the term.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    return torch.sum(torch.square(asset.data.joint_vel[:, :6]), dim=1)
