@@ -27,7 +27,6 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
 
     # Get the world state(position, orientation, linear velocity, angular velocity); R^13
     target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids]
-
     ee_pos_w = ee.data.target_pos_w
 
     offset_pos = target_pos_w.clone()

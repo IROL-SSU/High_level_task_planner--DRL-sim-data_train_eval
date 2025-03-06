@@ -265,6 +265,11 @@ srv/_*.py
 qtcreator-*
 *.user
 
+*.npy
+*.png
+*.json
+
+
 /planning/cfg
 /planning/docs
 /planning/src
@@ -338,3 +343,14 @@ _build
 *.png
 *.npy
 *.json
+# Custom ignore
+*.pth
+*.pt
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.obj
+*.usd
