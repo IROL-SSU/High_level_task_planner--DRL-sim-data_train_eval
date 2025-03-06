@@ -265,6 +265,11 @@ srv/_*.py
 qtcreator-*
 *.user
 
+*.npy
+*.png
+*.json
+
+
 /planning/cfg
 /planning/docs
 /planning/src
