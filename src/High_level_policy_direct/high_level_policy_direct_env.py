@@ -55,8 +55,8 @@ from PIL import Image
 @configclass
 class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     # env
-    decimation = 60 # 기존 2
-    episode_length_s = 5.0 # 기존 5.0
+    decimation = 10 # 기존 2 / 60(확인용) / 10(학습용)
+    episode_length_s = 4.0 # 기존 5.0
     action_space = [{3}, {4}]
     observation_space = 13
     state_space = 0
@@ -154,23 +154,24 @@ class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     asset_dict: dict = rigid_obj_dict
     
     target_row_index = 3
-    spawn_probability = 0.15
-    visibility_probability = 0.2
+    spawn_probability = 0.1
+    visibility_probability = 0.1
     
     # reward scales
     traget_grasping = 100.0
-    hp_sweeping_right = 12.0
-    hp_sweeping_left = 12.0
+    hp_sweeping_right = 20.0
+    hp_sweeping_left = 20.0
     hp_grasping = 10.0
     
     # penalty scales
-    lp_grasping = -10.0
-    lp_sweeping_right = -10.0
-    lp_sweeping_left = -10.0
+    lp_grasping = -5.0
+    lp_sweeping_right = -5.0
+    lp_sweeping_left = -5.0
     traget_sweeping = -20.0
-    
-    
+    empty_action = -10.0
     grasping_w_n_sweeping = -10.0
+    
+    
     sweeping_no_enough = -10.0
 
 
@@ -195,10 +196,11 @@ class HighlevelDirectEnv(DirectRLEnv):
         self.previous_shelf_front_object_distance = torch.zeros(self.num_envs, 4, device=self.device) # 이전 step에서의 shelf의 앞쪽 object까지의 거리
         self.previous_column_distribution = torch.zeros(self.num_envs, 4, device=self.device) # 이전 step에서의 4개의 column에 대한 distribution 최대 값들
         
-        self.previous_shelf_front_object_mask = torch.full((self.num_envs, 4), 20, device=self.device) # 이전 step에서의 shelf의 앞쪽 object id mask
-        
         self.previous_action_policy = torch.full((self.num_envs, 1), 0, device=self.device) # 이전 step에서의 action policy
         self.previous_action_column = torch.full((self.num_envs, 1), 0, device=self.device) # 이전 step에서 선택된 action column
+        
+        self.target_grasped = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device) # 각 환경별로 target grasped 여부
+
         
         self.action_commands = torch.tensor(
             [
@@ -251,18 +253,26 @@ class HighlevelDirectEnv(DirectRLEnv):
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.actions = actions.to(torch.int)
         
-        random_policy = torch.randint(0, 3, (self.num_envs,), device='cuda:0')
-        self.actions[:, 0] = random_policy
-        random_ids = torch.randint(0, 4, (self.num_envs,), device='cuda:0')
-        self.actions[:, 1] = random_ids
+        # random_policy = torch.full((self.num_envs, ), 1, device=self.device)
+        # random_policy = torch.randint(0, 3, (self.num_envs,), device='cuda:0')
+        # self.actions[:, 0] = random_policy
+        # random_ids = torch.randint(0, 4, (self.num_envs,), device='cuda:0')
+        # self.actions[:, 1] = random_ids
+        
         policy = self.actions[:, 0]
         # print(f"Policy: {policy}")
         item_idx = self.actions[:, 1]
         # print(f"Item idx: {item_idx}")
         
-        self.previous_action_policy = policy.unsqueeze(-1).clone()
-        self.previous_action_column = item_idx.unsqueeze(-1).clone()
+        policy = torch.clamp(policy, min=0, max=2)
+        # print(f"Policy: {policy}")
+        item_idx = torch.clamp(item_idx, min=0, max=3)
+        # print(f"Item idx: {item_idx}")
         
+        self.previous_action_policy = policy.unsqueeze(-1).clone()
+        # print(f"Previous action policy: {self.previous_action_policy}")
+        self.previous_action_column = item_idx.unsqueeze(-1).clone()
+        # print(f"Previous action column: {self.previous_action_column}")
         processed_position = self.action_commands[policy]
         
         env_indices = torch.arange(self.num_envs, device=self.device)  # 각 환경에서 shelf_front_object (shape: (num_envs, 4))의 item_idx에 해당하는 object id를 선택
@@ -271,18 +281,40 @@ class HighlevelDirectEnv(DirectRLEnv):
         # print(f"Selected object ids: {selected_object_ids}")
         valid_mask = selected_object_ids != -1 # 유효한 object id가 있는지 체크 (유효하면 -1이 아님)
         
-        if valid_mask.sum() > 0:
-            valid_envs = env_indices[valid_mask]
-            valid_obj_ids = selected_object_ids[valid_mask].unsqueeze(-1)
-            
-            current_obj_state = self._object_collection.data.object_state_w[valid_envs, valid_obj_ids.squeeze(-1)].clone()
-            
-            current_obj_state[:, :3] = current_obj_state[:, :3] + processed_position[valid_mask, :3]
-            
-            self._object_collection.write_object_state_to_sim(
-            object_state=current_obj_state.unsqueeze(1),  # (n_valid, 1, state_dim)
-            object_ids=valid_obj_ids                      # (n_valid, 1)
-            )
+        # 전체 환경에 대한 object state (shape: [num_envs, num_objects, state_dim])
+        all_obj_state = self._object_collection.data.object_state_w.clone()
+
+        # 전체 환경에 대해 업데이트할 state를 담을 텐서를 생성 (shape: [num_envs, state_dim])
+        # 여기서는 state_dim이 7이라고 가정합니다.
+        update_state = torch.zeros(self.num_envs, all_obj_state.size(-1), device=self.device)
+
+        # valid한 환경과 invalid한 환경의 인덱스를 구합니다.
+        valid_indices = torch.nonzero(valid_mask, as_tuple=False).squeeze(-1)
+        invalid_indices = torch.nonzero(~valid_mask, as_tuple=False).squeeze(-1)
+
+        # valid 환경: 선택된 object id에 해당하는 state를 가져와 이동 벡터(processed_position)를 더합니다.
+        if valid_indices.numel() > 0:
+            valid_obj_ids = selected_object_ids[valid_indices].long()  # shape: [n_valid]
+            # all_obj_state[env, obj, :] 선택 -> shape: [n_valid, state_dim]
+            update_state[valid_indices] = all_obj_state[valid_indices, valid_obj_ids, :].clone()
+            # x,y,z (앞 3 요소)에 processed_position을 더함
+            update_state[valid_indices, :3] += processed_position[valid_indices, :3]
+        
+        # invalid 환경: object id가 -1인 경우에는 dummy 업데이트 (여기서는 0번 object state를 사용)
+        if invalid_indices.numel() > 0:
+            update_state[invalid_indices] = all_obj_state[invalid_indices, 0, :].clone()
+            # 변화가 없도록 processed_position은 더하지 않습니다.
+
+        # 전체 환경에 대해 full_object_ids: 유효하지 않은 환경은 dummy로 0번 object id 사용
+        full_object_ids = selected_object_ids.clone().unsqueeze(-1)  # shape: [num_envs, 1]
+        if invalid_indices.numel() > 0:
+            full_object_ids[invalid_indices] = 0  # dummy object id
+
+        # 최종적으로, 업데이트된 update_state를 [num_envs, 1, state_dim]으로 만들어 업데이트합니다.
+        self._object_collection.write_object_state_to_sim(
+            object_state=update_state.unsqueeze(1),  # [num_envs, 1, state_dim]
+            object_ids=full_object_ids                # [num_envs, 1]
+        )
             
         ## Shelf 업데이트: Grasping/Sweeping action에 따라 shelf_object_config 변경
         num_envs, num_rows, num_cols = self.shelf_object_config.shape
@@ -336,12 +368,12 @@ class HighlevelDirectEnv(DirectRLEnv):
         sweep_left_invalid_rows = front_rows[sweep_left_invalid_mask]
         sweep_left_invalid_cols = item_idx[sweep_left_invalid_mask]
         self.shelf_object_config[sweep_left_invalid_envs, sweep_left_invalid_rows, sweep_left_invalid_cols] = -1
-        
-        # print(self.shelf_object_config)
+
+        # # print(self.shelf_object_config)
             
 
     def _apply_action(self) -> None:
-        
+        self._object_collection.update(dt=self.scene.physics_dt)
         # policy = self.actions[:, 0]
         # items = self.actions[:, 1]
 
@@ -355,7 +387,6 @@ class HighlevelDirectEnv(DirectRLEnv):
 
     def _get_observations(self) -> dict:
         camera_data = self._tiled_camera.data.output["rgb"]  # (N, H, W, C)
-        
         # image_to_image = camera_data[0].detach()
         # image_to_image = image_to_image.cpu().numpy()
         # plt.figure(figsize=(8, 6))
@@ -425,7 +456,8 @@ class HighlevelDirectEnv(DirectRLEnv):
         row_indices_clamped = torch.clamp(max_row_indices2, min=0)
         shelf_front_object_distance = mapping[row_indices_clamped]
         noise = torch.empty_like(shelf_front_object_distance).uniform_(-0.01, 0.01)
-        shelf_front_object_distance = torch.where(valid_mask, shelf_front_object_distance + noise, shelf_front_object_distance)
+        # shelf_front_object_distance = torch.where(valid_mask, shelf_front_object_distance + noise, shelf_front_object_distance)
+        shelf_front_object_distance = torch.where(valid_mask, shelf_front_object_distance + noise, torch.zeros_like(shelf_front_object_distance))
         self.shelf_front_object_distance = shelf_front_object_distance
         # print(f"Shelf front object distance: {self.shelf_front_object_distance}")
         # print(f"Shelf front object: {self.shelf_front_object}")
@@ -433,6 +465,9 @@ class HighlevelDirectEnv(DirectRLEnv):
         self.previous_shelf_object_config = self.shelf_object_config.clone()
         self.previous_shelf_front_object = shelf_front_object.clone()
         self.previous_shelf_front_object_distance = shelf_front_object_distance.clone()
+        
+        # print(f"previous_shelf_front_object: {self.previous_shelf_front_object}")
+        # print(f"previous_shelf_front_object_distance: {self.previous_shelf_front_object_distance}")
         
         if self.cfg.write_image_to_file:
             pred_to_save = pred.unsqueeze(-1)
@@ -466,180 +501,294 @@ class HighlevelDirectEnv(DirectRLEnv):
         return obs
 
     def _get_rewards(self) -> torch.Tensor:
-        # ## 음수 마스킹
-        # self.previous_shelf_front_object_mask = self.previous_shelf_front_object.clone()
-        # self.previous_shelf_front_object_mask[self.previous_shelf_front_object_mask == -1] = 20
+        ## target grasping reward
+        # 1. 이전 step의 행동 정보를 추출 (각 환경별로 policy와 sweeping column 인덱스)
+        pol = self.previous_action_policy.squeeze(-1) # shape: (num_envs,)
+        # print(f"Policy: {pol}")
+        col = self.previous_action_column.squeeze(-1).long() # shape: (num_envs,), 값은 0~3 중 하나
+        # print(f"Column: {col}")
         
-        # ## target grasping reward
-        # # 1. 이전 step의 행동 정보를 추출 (각 환경별로 policy와 sweeping column 인덱스)
-        # pol = self.previous_action_policy.squeeze(-1) # shape: (num_envs,)
-        # # col = self.previous_action_column.squeeze(-1) # shape: (num_envs,), 값은 0~3 중 하나
-        # col = self.previous_action_column.squeeze(-1).long()
+        # 2. 이전 step의 shelf front object 정보에서, 각 환경의 'col' 인덱스에 해당하는 object id를 추출
+        shelf_obj = self.previous_shelf_front_object.gather(dim=1, index=col.unsqueeze(1)).squeeze(1) # shape: (num_envs,)
         
-        # # 2. 이전 step의 shelf front object 정보에서, 각 환경의 'col' 인덱스에 해당하는 object id를 추출
-        # shelf_obj = self.previous_shelf_front_object_mask.gather(dim=1, index=col.unsqueeze(1)).squeeze(1) # shape: (num_envs,)
+        # 3. 현재 target id는 self.target_id에 저장되어 있으며, shape은 (num_envs, 1) / 이전 step에서의 action이 target grasping인 경우에만 reward 부여
+        target = self.target_id.squeeze(-1) # shape: (num_envs,)
         
-        # # 3. 현재 target id는 self.target_id에 저장되어 있으며, shape은 (num_envs, 1) / 이전 step에서의 action이 target grasping인 경우에만 reward 부여
-        # target = self.target_id.squeeze(-1) # shape: (num_envs,)
-        
-        # target_grasp_condition = (pol == 0) & (shelf_obj != 20) & (shelf_obj == target)
-        # target_grasping_reward = self.cfg.traget_grasping * target_grasp_condition.float()
-        
-        
-        # ## sweeping right reward
-        # # 1. 조건 1: 이전 action이 sweeping right (policy==1)이고, 이전 column이 3이 아닌 경우
-        # swr_cond1 = (pol == 1) & (col != 3)
-        
-        # # 2. 조건 2: 이전 column 분포에서 최대값
-        # argmax_col = torch.argmax(self.previous_column_distribution, dim=1)
-        # swr_cond2 = (argmax_col == col)
-        
-        # # 3.  환경에서 이전 action column과 이전 action column+1에 해당하는 거리를 각각 추출해서 밀려고 하는 column에 공간이 있는지 확인
-        # dist_current = self.previous_shelf_front_object_distance.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
-        # dist_right = self.previous_shelf_front_object_distance.gather(dim=1, index=(col + 1).unsqueeze(1)).squeeze(1)
-        # swr_cond3 = (dist_right > 0) & (dist_right > dist_current)
-        
-        # # 4. 조건 4: 이전 step의 shelf_front_object에서, 선택된 column(col)에 해당하는 object id가 -1이 아니어야 함
-        # previous_obj2 = self.previous_shelf_front_object_mask.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
-        # swr_cond4 = (previous_obj2 != 20)
-        
-        # # 최종 조건
-        # sweeping_right_condition = swr_cond1 & swr_cond2 & swr_cond3 & swr_cond4
-        # sweeping_right_reward = self.cfg.hp_sweeping_right * sweeping_right_condition.float()
-        
-        
-        # ## sweeping left reward
-        # # 1. 조건 1: 이전 action이 sweeping left (policy==2)이고, 이전 column이 0이 아닌 경우
-        # swl_cond1 = (pol == 2) & (col != 0)
-        
-        # # 2. 조건 2: 이전 step의 column 분포에서 각 환경마다 최대값의 인덱스가 이전 action column과 동일
-        # argmax_col1 = torch.argmax(self.previous_column_distribution, dim=1)  # (num_envs,)
-        # swl_ond2 = (argmax_col1 == col)
-        
-        # # 3.  환경에서 이전 action column과 이전 action column-1에 해당하는 거리를 각각 추출해서 밀려고 하는 column에 공간이 있는지 확인
-        # dist_current2 = self.previous_shelf_front_object_distance.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)  # (num_envs,)
-        # dist_left = self.previous_shelf_front_object_distance.gather(dim=1, index=(col - 1).unsqueeze(1)).squeeze(1)   # (num_envs,)
-        # sw1_cond3 = (dist_left > 0) & (dist_left > dist_current2)
-        
-        # # 4. 조건 4: 이전 step의 shelf_front_object에서, 선택된 column(col)에 해당하는 object id가 -1이 아니어야 함
-        # previous_obj3 = self.previous_shelf_front_object_mask.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
-        # swl_cond4 = (previous_obj3 != 20)
-        
-        # # 최종 조건
-        # sweeping_left_condition = swl_cond1 & swl_ond2 & sw1_cond3 & swl_cond4
-        # sweeping_left_reward = self.cfg.hp_sweeping_left * sweeping_left_condition.float()
-        
-        
-        # ## grasping reward
-        # # 1. 조건 1: 이전 행동이 grasping (policy == 0)
-        # gra_cond1 = (pol == 0)
-        
-        # # 2. 조건 2: 이전 step의 column 분포에서, 각 환경의 최대값 인덱스가 이전 선택 열(prev_col)과 같아야 함
-        # argmax_col2 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
-        # gra_cond2 = (argmax_col2 == col)
-        
-        # # # 3. 조건 3: 좌우 coulmn에 object가 있어야 함
-        # # d_curr = self.previous_shelf_front_object_distance.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
-        # # d_curr = d_curr + 0.05  
-        # # gra_cond3 = torch.zeros_like(gra_cond1, dtype=torch.bool)
-        
-        # # idx0 = (col == 0)
+        target_grasp_condition = (pol == 0) & (shelf_obj != -1) & (shelf_obj == target)
+        self.target_grasped = self.target_grasped | target_grasp_condition
 
-        # # # if idx0.sum().item() > 0:
-        # # d_right = self.previous_shelf_front_object_distance.gather(dim=1, index=(col + 1).unsqueeze(1)).squeeze(1)
-        # # gra_cond3 = gra_cond3 | (idx0 & (d_right > 0) & (d_right < d_curr))
-            
-        # # idx3 = (col == 3)
-        # # # if idx3.sum().item() > 0:https://chatgpt.com/c/67bc62aa-a358-800b-a1cd-ec98d597b679
-        # # d_left = self.previous_shelf_front_object_distance.gather(dim=1, index=(col - 1).unsqueeze(1)).squeeze(1)
-        # # gra_cond3 = gra_cond3 | (idx3 & (d_left > 0) & (d_left < d_curr))
-            
-        # # idx_mid = ~(idx0 | idx3)
-        # # # if idx_m id.sum().item() > 0:
-        # # d_left = self.previous_shelf_front_object_distance.gather(dim=1, index=(col - 1).unsqueeze(1)).squeeze(1)
-        # # d_right = self.previous_shelf_front_object_distance.gather(dim=1, index=(col + 1).unsqueeze(1)).squeeze(1)
-        # # cond_mid = (d_left > 0) & (d_right > 0) & (d_left < d_curr) & (d_right < d_curr)
-        # # gra_cond3 = gra_cond3 | (idx_mid & cond_mid)
-            
-        # # 4. 조건 4: 이전 step의 shelf_front_object에서, 선택된 column(col)에 해당하는 object id가 -1이 아니어야 함
-        # previous_obj4 = self.previous_shelf_front_object_mask.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
-        # gra_cond4 = (previous_obj4 != 20)
+        target_grasping_reward = self.cfg.traget_grasping * target_grasp_condition.float()
+        
+        
+        ## sweeping right reward
+        # 1. 조건 1: 이전 action이 sweeping right (policy==1)이고, 이전 column이 3이 아닌 경우
+        swr_cond1 = (pol == 1) & (col != 3)
+        
+        # 2. 조건 2: 이전 column 분포에서 최대값
+        argmax_col = torch.argmax(self.previous_column_distribution, dim=1)
+        swr_cond2 = (argmax_col == col)
+        
+        # 3.  환경에서 이전 action column과 이전 action column+1에 해당하는 거리를 각각 추출해서 밀려고 하는 column에 공간이 있는지 확인
+        valid_right = (col < 3)
+        # print(f"colum: {col}")
+        # print(f"Valid right: {valid_right}")
+        dist_current = self.previous_shelf_front_object_distance.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
+        # print(f"Dist current: {dist_current}")
+        dist_current = dist_current + torch.tensor(0.05, device=self.device)
+        # print(f"Dist current: {dist_current}")
+        safe_index = torch.where(valid_right, col + 1, torch.zeros_like(col))
+        # print(f"Safe index: {safe_index}")
+        dist_right = self.previous_shelf_front_object_distance.gather(
+            dim=1, index=safe_index.unsqueeze(1).long()
+        ).squeeze(1)
+        dist_right = torch.where(valid_right, dist_right, torch.zeros_like(dist_right))
+        prev_obj_right = self.previous_shelf_front_object.gather(dim=1, index=safe_index.unsqueeze(1).long()).squeeze(1)
+        swr_cond3 = valid_right & (((dist_right > 0) & (dist_right > dist_current)) | (prev_obj_right == -1))
+        
+        # 4. 조건 4: 이전 step의 shelf_front_object에서, 선택된 column(col)에 해당하는 object id가 -1이 아니어야 함
+        previous_obj2 = self.previous_shelf_front_object.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
+        swr_cond4 = (previous_obj2 != -1)
+        
+        # 최종 조건
+        sweeping_right_condition = swr_cond1 & swr_cond2 & swr_cond3 & swr_cond4
+        # print(f"Sweeping right condition: {sweeping_right_condition}")
+        sweeping_right_reward = self.cfg.hp_sweeping_right * sweeping_right_condition.float()
+        
+        
+        ## sweeping left reward
+        # 1. 조건 1: 이전 action이 sweeping left (policy==2)이고, 이전 column이 0이 아닌 경우
+        swl_cond1 = (pol == 2) & (col != 0)
+
+        # 2. 조건 2: 이전 step의 column 분포에서 각 환경마다 최대값의 인덱스가 이전 action column과 동일
+        argmax_col1 = torch.argmax(self.previous_column_distribution, dim=1)  # (num_envs,)
+        swl_ond2 = (argmax_col1 == col)
+
+        # 3.  환경에서 이전 action column과 이전 action column-1에 해당하는 거리를 각각 추출해서 밀려고 하는 column에 공간이 있는지 확인
+        valid_left = (col > 0)
+        dist_current2 = self.previous_shelf_front_object_distance.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)  # (num_envs,)
+        dist_current2 = dist_current2 + torch.tensor(0.05, device=self.device)
+        safe_index2 = torch.where(valid_left, col - 1, torch.zeros_like(col))
+        dist_left = self.previous_shelf_front_object_distance.gather(
+            dim=1, index=safe_index2.unsqueeze(1).long()
+        ).squeeze(1)
+        dist_left = torch.where(valid_left, dist_left, torch.zeros_like(dist_left))
+        prev_obj_left = self.previous_shelf_front_object.gather(dim=1, index=safe_index2.unsqueeze(1).long()).squeeze(1)
+        sw1_cond3 = valid_left & (((dist_left > 0) & (dist_left > dist_current2)) | (prev_obj_left == -1))
+
+        # 4. 조건 4: 이전 step의 shelf_front_object에서, 선택된 column(col)에 해당하는 object id가 -1이 아니어야 함
+        previous_obj3 = self.previous_shelf_front_object.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
+        swl_cond4 = (previous_obj3 != -1)
+
+        # 최종 조건
+        sweeping_left_condition = swl_cond1 & swl_ond2 & sw1_cond3 & swl_cond4
+        # print(f"Sweeping left condition: {sweeping_left_condition}")
+        sweeping_left_reward = self.cfg.hp_sweeping_left * sweeping_left_condition.float()
+        
+        
+        ## grasping reward
+        # 1. 조건 1: 이전 행동이 grasping (policy == 0) / 이전 step에서 선택된 object가 target이 아닌 경우
+        gra_cond1 = (pol == 0) & (shelf_obj != target)
+        
+        # 2. 조건 2: 이전 step의 column 분포에서, 각 환경의 최대값 인덱스가 이전 선택 열(prev_col)과 같아야 함
+        argmax_col2 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
+        gra_cond2 = (argmax_col2 == col)
+        
+        # 3. 조건 3: 좌우 coulmn에 object가 있어야 함
+        d_curr = self.previous_shelf_front_object_distance.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
+        d_curr = d_curr + torch.tensor(0.05, device=self.device)
+        # 조건 확인을 위한 인덱스 계산
+        valid_left2 = (col > 0)
+        valid_right2 = (col < 3)
+        safe_index_left  = torch.where(valid_left2,  col - 1, torch.zeros_like(col))
+        safe_index_right = torch.where(valid_right2, col + 1, torch.zeros_like(col))
+        # 오른쪽 column에 object가 있는지 확인을 위한 거리 계산
+        d_left  = torch.where(valid_left2,
+                      self.previous_shelf_front_object_distance.gather(dim=1, index=safe_index_left.unsqueeze(1).long()).squeeze(1),
+                      torch.zeros_like(d_curr))
+        # 왼쪽 column에 object가 있는지 확인을 위한 거리 계산
+        d_right = torch.where(valid_right2,
+                      self.previous_shelf_front_object_distance.gather(dim=1, index=safe_index_right.unsqueeze(1).long()).squeeze(1),
+                      torch.zeros_like(d_curr))
+        # 조건 3 계산
+        gra_cond3 = torch.zeros_like(d_curr, dtype=torch.bool)
+        gra_cond3 = torch.where(col == 0, (d_right > 0) & (d_right <= d_curr), gra_cond3)
+        gra_cond3 = torch.where(col == 3, (d_left > 0) & (d_left <= d_curr), gra_cond3)
+        mask_mid = (col > 0) & (col < 3)
+        gra_cond3 = torch.where(mask_mid, ((d_left > 0) & (d_left <= d_curr)) & ((d_right > 0) & (d_right <= d_curr)), gra_cond3)
+        
+        # 4. 조건 4: 이전 step의 shelf_front_object에서, 선택된 column(col)에 해당하는 object id가 -1이 아니어야 함
+        previous_obj4 = self.previous_shelf_front_object.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
+        gra_cond4 = (previous_obj4 != -1)
         
         # # 최종 조건
-        # grasp_condition = gra_cond1 & gra_cond2 & gra_cond4
-        # grasping_reward = self.cfg.hp_grasping * grasp_condition.float()
+        grasp_condition = gra_cond1 & gra_cond2 & gra_cond3 & gra_cond4
+        grasping_reward = self.cfg.hp_grasping * grasp_condition.float()
+        
+        # print(f"previous_shelf_object_config: {self.previous_shelf_object_config}")
+        # print(f"current_shelf_object_config: {self.shelf_object_config}")
+        # print(f"previous_shelf_fornt_distance: {self.previous_shelf_front_object_distance}")
+        # print(f"graasping condition 1: {gra_cond1}")
+        # print(f"graasping condition 2: {gra_cond2}")
+        # print(f"Grasping condition 3: {gra_cond3}")
+        # print(f"Grasping condition 4: {gra_cond4}")
+        # print(f"graasping condition: {grasp_condition}")
+        # print("-------------------------------------------------")
         
         
         
-        # #### 패널티 함수 ####
-        # ## 낮은 확율 분포 grasping 패널티
-        # argmax_col3 = torch.argmax(self.previous_column_distribution, dim=1)
-        # grasping_penalty_condition = (pol == 0) & (argmax_col3 != col)
-        # grasping_penalty = self.cfg.lp_grasping * grasping_penalty_condition.float()
+        #### 패널티 함수 ####
+        ## 낮은 확율 분포 grasping 패널티
+        argmax_col3 = torch.argmax(self.previous_column_distribution, dim=1)
+        grasping_penalty_condition = (pol == 0) & (argmax_col3 != col)
+        grasping_penalty = self.cfg.lp_grasping * grasping_penalty_condition.float()
         
-        # ## 낮은 확율 분포 sweeping right 패널티
-        # argmax_col4 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
-        # sweeping_right_penalty_condition = (pol == 1) & (argmax_col4 != col)
-        # sweeping_right_penalty = self.cfg.lp_sweeping_right * sweeping_right_penalty_condition.float()
+        ## 낮은 확율 분포 sweeping right 패널티
+        argmax_col4 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
+        sweeping_right_penalty_condition = (pol == 1) & (argmax_col4 != col)
+        sweeping_right_penalty = self.cfg.lp_sweeping_right * sweeping_right_penalty_condition.float()
         
-        # ## 낮은 확울 분포 sweeping left 패널티
-        # argmax_col5 = torch.argmax(self.previous_column_distribution, dim=1)
-        # sweeping_left_penalty_condition = (pol == 2) & (argmax_col5 != col)
-        # sweeping_left_penalty = self.cfg.lp_sweeping_left * sweeping_left_penalty_condition.float()
+        ## 낮은 확울 분포 sweeping left 패널티
+        argmax_col5 = torch.argmax(self.previous_column_distribution, dim=1)
+        sweeping_left_penalty_condition = (pol == 2) & (argmax_col5 != col)
+        sweeping_left_penalty = self.cfg.lp_sweeping_left * sweeping_left_penalty_condition.float()
         
-        # ## target sweeping 패널티
-        # selected_obj_ids = self.previous_shelf_front_object_mask.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
-        # target2 = self.target_id.squeeze(-1)
-        # target_sweeping_condition = ((pol == 1) | (pol == 2)) & (selected_obj_ids == target2)
-        # target_sweeping_penalty = self.cfg.traget_sweeping * target_sweeping_condition.float()
+        ## target sweeping 패널티
+        selected_obj_ids = self.previous_shelf_front_object.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
+        target2 = self.target_id.squeeze(-1)
+        target_sweeping_condition = ((pol == 1) | (pol == 2)) & (selected_obj_ids == target2)
+        target_sweeping_penalty = self.cfg.traget_sweeping * target_sweeping_condition.float()
         
-        # total_reward = (target_grasping_reward + sweeping_right_reward + sweeping_left_reward + grasping_reward + grasping_penalty + sweeping_right_penalty + sweeping_left_penalty + target_sweeping_penalty)
+        ## empty column penalty (물체가 없는 column을 선택했을 때 패널티)
+        no_object_condition = (self.previous_shelf_front_object.gather(dim=1, index=col.unsqueeze(1)).squeeze(1) == -1)
+        no_object_penalty = self.cfg.empty_action * no_object_condition.float()
         
-        # return total_reward
+        ## sweeping이 가능하나 grasping을 선택한 경우 패널티
+        # 1. 조건 1: grasping을 선택하였으나, 오른쪽으로 sweeping이 가능한 경우
+        g_n_swr_cond1 = (pol == 0) & (col != 3)
+        grasping_w_n_right_sweeping_condition = g_n_swr_cond1 & swr_cond2 & swr_cond3 & swr_cond4
+        # 2. 조건 2: grasping을 선택하였으나, 왼쪽으로 sweeping이 가능한 경우
+        g_n_swl_cond1 = (pol == 0) & (col != 0)
+        grasping_w_n_left_sweeping_condition = g_n_swl_cond1 & swl_ond2 & sw1_cond3 & swl_cond4
+        # 최종 조건
+        grasping_w_n_sweeping_condition = grasping_w_n_right_sweeping_condition | grasping_w_n_left_sweeping_condition
+        grasping_w_n_sweeping_penalty = self.cfg.grasping_w_n_sweeping * grasping_w_n_sweeping_condition.float()
         
-        return torch.zeros(self.num_envs, device=self.device)
+        total_reward = (target_grasping_reward + sweeping_right_reward + sweeping_left_reward + grasping_reward + grasping_penalty + sweeping_right_penalty + sweeping_left_penalty + target_sweeping_penalty + no_object_penalty + grasping_w_n_sweeping_penalty)
+        
+        return total_reward
+        
+        # return torch.zeros(self.num_envs, device=self.device)
 
     def _get_dones(self, height_condition: float = 1.04 , rotation_condition: float= 0.9) -> tuple[torch.Tensor, torch.Tensor]:
         time_out = self.episode_length_buf >= self.max_episode_length - 1
 
-        objects_pose = self._object_collection.data.object_state_w.clone()  # (N, num_objects, 13)
+        # objects_pose = self._object_collection.data.object_state_w.clone()  # (N, num_objects, 13)
 
-        num_envs, num_objects = objects_pose.shape[:2]  # 환경 개수, 물체 개수
+        # num_envs, num_objects = objects_pose.shape[:2]  # 환경 개수, 물체 개수
 
-        # 모든 물체의 높이값 가져오기 (z축 위치)
-        heights = objects_pose[..., :, 2]  # (N, num_objects)
-        print(f"Heights: {heights}")
+        # # 모든 물체의 높이값 가져오기 (z축 위치)
+        # heights = objects_pose[..., :, 2]  # (N, num_objects)
+        # # print(f"Heights: {heights}")
         
-        # 물체가 떨어졌는지 확인
-        is_dropped = heights < height_condition  # (N, num_objects) -> Bool 텐서
+        # # 물체가 떨어졌는지 확인
+        # is_dropped = heights < height_condition  # (N, num_objects) -> Bool 텐서
 
-        # 모든 물체의 quaternion (N, num_objects, 4)
-        quat_tensor = objects_pose[..., :, 3:7].reshape(-1, 4)  # (N * num_objects, 4)
+        # # 모든 물체의 quaternion (N, num_objects, 4)
+        # quat_tensor = objects_pose[..., :, 3:7].reshape(-1, 4)  # (N * num_objects, 4)
 
-        # 벡터 연산으로 quaternion → Euler 변환
-        roll, pitch, _ = euler_xyz_from_quat(quat_tensor)  # (N * num_objects,)
+        # # 벡터 연산으로 quaternion → Euler 변환
+        # roll, pitch, _ = euler_xyz_from_quat(quat_tensor)  # (N * num_objects,)
 
-        # 원래 차원으로 복구 (N, num_objects)
-        roll = roll.view(num_envs, num_objects)
-        pitch = pitch.view(num_envs, num_objects)
+        # # 원래 차원으로 복구 (N, num_objects)
+        # roll = roll.view(num_envs, num_objects)
+        # pitch = pitch.view(num_envs, num_objects)
 
-        roll = normalize_angle(roll)
-        pitch = normalize_angle(pitch)
+        # roll = normalize_angle(roll)
+        # pitch = normalize_angle(pitch)
 
-        # 물체가 넘어졌는지 확인 (roll, pitch가 특정 값 이상이면 뒤집힌 것으로 간주)
-        is_flipped = (torch.abs(roll) > rotation_condition) | (torch.abs(pitch) > rotation_condition)
+        # # 물체가 넘어졌는지 확인 (roll, pitch가 특정 값 이상이면 뒤집힌 것으로 간주)
+        # is_flipped = (torch.abs(roll) > rotation_condition) | (torch.abs(pitch) > rotation_condition)
 
-        # 하나라도 물체가 떨어지거나 넘어졌다면 episode 종료
-        episode_done = torch.any(is_dropped | is_flipped, dim=1)  # (N,)
+        # # 하나라도 물체가 떨어지거나 넘어졌다면 episode 종료
+        # episode_done = torch.any(is_dropped | is_flipped, dim=1)  # (N,)
+        
+        
+        
+        
+        ## ---------------------------------- ##
+        ## 오브젝트 배열 기반 터미네이션 작성 ##
+        pol = self.previous_action_policy.squeeze(-1)
+        col = self.previous_action_column.squeeze(-1).long()
+        shelf_obj = self.previous_shelf_front_object.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
+        target = self.target_id.squeeze(-1)
+        
+        num_envs, num_rows, num_cols = self.previous_shelf_object_config.shape  # (num_envs, 3, 4)
+        env_indices = torch.arange(num_envs, device=self.device)
+        
+        ## sweeping right termination
+        # 조건 1: col이 3이면 터미네이션 (workspace 밖으로 나감)
+        term_spr_cond1 = (pol == 1) & (col == 3)
 
-        return episode_done, time_out
+        # 조건 2: policy가 sweeping right이고, col이 3 미만인 경우
+        valid = (pol == 1) & (col < 3)
+        # 안전하게 오른쪽 셀을 선택하기 위해 valid인 경우에만 col+1, 그렇지 않으면 0번 인덱스를 사용
+        safe_index = torch.where(valid, col + 1, torch.zeros_like(col))
+
+        # 각 환경의 선택된 column의 front row 인덱스를 계산
+        rows_tensor = torch.arange(num_rows, device=self.device).view(1, num_rows, 1)  # (1, num_rows, 1)
+        mask = (self.previous_shelf_object_config != -1)  # (num_envs, num_rows, num_cols)
+        candidate = torch.where(mask, rows_tensor.expand_as(self.previous_shelf_object_config),
+                                torch.full_like(self.previous_shelf_object_config, -1))
+        front_rows = candidate.max(dim=1)[0]  # (num_envs, num_cols)
+        # 각 환경별로, 선택된 col의 front row 인덱스를 추출
+        selected_front_rows = front_rows.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)  # (num_envs,)
+
+        # 오른쪽 셀의 object id를 GPU에서 안전하게 추출 (여기서 selected_front_rows를 사용)
+        env_indices = torch.arange(num_envs, device=self.device)
+        right_cell = self.previous_shelf_object_config[env_indices, selected_front_rows, safe_index]
+
+        # 최종 조건: valid 환경에 한해서, 오른쪽 셀의 값이 -1이 아니어야 함.
+        term_spr_cond2 = valid & (right_cell != -1)
+
+        termination_spr = term_spr_cond1 | term_spr_cond2
+        
+        
+        ## sweeping left termination
+        # 조건 1: sweeping left action이고, 선택한 col이 0이면 터미네이션 (workspace 밖으로 나감)
+        term_swl_cond1 = (pol == 2) & (col == 0)
+
+        # 조건 2: policy가 sweeping left이고, col이 0 미만이 아닌 (즉, col > 0) 경우
+        valid_left = (pol == 2) & (col > 0)
+        # 안전하게 왼쪽 셀 인덱스를 선택: valid_left인 경우에만 col - 1, 아니면 0번 인덱스 사용
+        safe_index2 = torch.where(valid_left, col - 1, torch.zeros_like(col))
+        # 각 환경의 선택된 column의 front row 인덱스를 계산 (이전 단계의 shelf_object_config 사용)
+        rows_tensor2 = torch.arange(num_rows, device=self.device).view(1, num_rows, 1)  # (1, num_rows, 1)
+        mask2 = (self.previous_shelf_object_config != -1)  # (num_envs, num_rows, num_cols)
+        candidate2 = torch.where(mask2, rows_tensor2.expand_as(self.previous_shelf_object_config),
+                                torch.full_like(self.previous_shelf_object_config, -1))
+        front_rows2 = candidate2.max(dim=1)[0]  # (num_envs, num_cols)
+        # 각 환경별로, 선택된 col의 front row 인덱스를 추출
+        selected_front_rows2 = front_rows2.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)  # (num_envs,)
+
+        # 안전하게 왼쪽 셀의 object id를 추출: 이전 shelf_object_config의 safe_index2 위치 사용
+        env_indices = torch.arange(num_envs, device=self.device)
+        left_cell = self.previous_shelf_object_config[env_indices, selected_front_rows2, safe_index2]
+        # 최종 조건: valid_left인 환경에 대해, 왼쪽 셀의 값이 -1이 아니어야 터미네이션 (즉, 물체가 존재하면 터미네이션)
+        term_swl_cond2 = valid_left & (left_cell != -1)
+
+        termination_swl = term_swl_cond1 | term_swl_cond2
+        
+        ## Target grasping termination
+        termination_target = self.target_grasped  # shape: (num_envs,), bool
+        
+        termination = termination_spr | termination_swl | termination_target
+
+        return termination, time_out
 
     def _reset_idx(self, env_ids: Sequence[int] | None):
         super()._reset_idx(env_ids)
-        
         self.previous_distribution[env_ids, :].zero_()
         self.column_distribution[env_ids, :].zero_()
-        
         
         rows, cols = len(self.cfg.pose_array[0]), len(self.cfg.pose_array[0][0])
 
@@ -663,7 +812,9 @@ class HighlevelDirectEnv(DirectRLEnv):
         self.target_id[env_ids, 0] = target_object_id
 
         target_object_name = self.cfg.object_id_dict_rev[str(target_object_id)]
+        # print("-------------------new episode-------------------")
         # print(f"Target object name: {target_object_name}")
+        # print(f"Target object id: {target_object_id}")
 
         target_category = self.get_category(target_object_name)
         same_category_items = self.cfg.object_category[target_category].copy()
@@ -848,6 +999,11 @@ class HighlevelDirectEnv(DirectRLEnv):
                            expanded_coords[:, :, 1]] = expanded_object_ids
         
         self.previous_shelf_object_config[env_ids] = self.shelf_object_config[env_ids].clone()
+        
+        self.previous_action_policy[env_ids] = torch.zeros_like(self.previous_action_policy[env_ids])
+        self.previous_action_column[env_ids] = torch.zeros_like(self.previous_action_column[env_ids])
+        
+        self.target_grasped[env_ids] = False
         
         # print(self.shelf_object_config)
         # print(f"previous_shelf_object_config: {self.previous_shelf_object_config}")
