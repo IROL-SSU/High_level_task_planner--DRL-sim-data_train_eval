@@ -159,18 +159,18 @@ class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     
     # reward scales
     traget_grasping = 100.0
-    hp_sweeping_right = 20.0
-    hp_sweeping_left = 20.0
+    hp_sweeping_right = 30.0
+    hp_sweeping_left = 30.0
     hp_grasping = 10.0
     
     # penalty scales
     lp_grasping = -5.0
     lp_sweeping_right = -5.0
     lp_sweeping_left = -5.0
-    traget_sweeping = -20.0
+    traget_sweeping = -60.0
     empty_action = -10.0
-    grasping_w_n_sweeping = -10.0
-    
+    grasping_w_n_sweeping = -60.0
+    sweeping_again = -30.0
     
     sweeping_no_enough = -10.0
 
@@ -196,8 +196,11 @@ class HighlevelDirectEnv(DirectRLEnv):
         self.previous_shelf_front_object_distance = torch.zeros(self.num_envs, 4, device=self.device) # 이전 step에서의 shelf의 앞쪽 object까지의 거리
         self.previous_column_distribution = torch.zeros(self.num_envs, 4, device=self.device) # 이전 step에서의 4개의 column에 대한 distribution 최대 값들
         
-        self.previous_action_policy = torch.full((self.num_envs, 1), 0, device=self.device) # 이전 step에서의 action policy
-        self.previous_action_column = torch.full((self.num_envs, 1), 0, device=self.device) # 이전 step에서 선택된 action column
+        self.action_policy = torch.full((self.num_envs, 1), 0, device=self.device) # 현재 step에서의 action policy
+        self.action_column = torch.full((self.num_envs, 1), 0, device=self.device) # 현재 step에서 선택된 action column
+        
+        self.previous_action_policy = torch.full((self.num_envs, 1), 0, device=self.device) # 이전 step에서의 action policy (초기값은 0)
+        self.previous_action_column = torch.full((self.num_envs, 1), 0, device=self.device) # 이전 step에서의 action column (초기값은 0)
         
         self.target_grasped = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device) # 각 환경별로 target grasped 여부
 
@@ -253,7 +256,7 @@ class HighlevelDirectEnv(DirectRLEnv):
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.actions = actions.to(torch.int)
         
-        # random_policy = torch.full((self.num_envs, ), 1, device=self.device)
+        # random_policy = torch.full((self.num_envs, ), 0, device=self.device)
         # random_policy = torch.randint(0, 3, (self.num_envs,), device='cuda:0')
         # self.actions[:, 0] = random_policy
         # random_ids = torch.randint(0, 4, (self.num_envs,), device='cuda:0')
@@ -269,10 +272,10 @@ class HighlevelDirectEnv(DirectRLEnv):
         item_idx = torch.clamp(item_idx, min=0, max=3)
         # print(f"Item idx: {item_idx}")
         
-        self.previous_action_policy = policy.unsqueeze(-1).clone()
-        # print(f"Previous action policy: {self.previous_action_policy}")
-        self.previous_action_column = item_idx.unsqueeze(-1).clone()
-        # print(f"Previous action column: {self.previous_action_column}")
+        self.action_policy = policy.unsqueeze(-1).clone()
+        # print(f"Previous action policy: {self.action_policy}")
+        self.action_column = item_idx.unsqueeze(-1).clone()
+        # print(f"Previous action column: {self.action_column}")
         processed_position = self.action_commands[policy]
         
         env_indices = torch.arange(self.num_envs, device=self.device)  # 각 환경에서 shelf_front_object (shape: (num_envs, 4))의 item_idx에 해당하는 object id를 선택
@@ -503,9 +506,9 @@ class HighlevelDirectEnv(DirectRLEnv):
     def _get_rewards(self) -> torch.Tensor:
         ## target grasping reward
         # 1. 이전 step의 행동 정보를 추출 (각 환경별로 policy와 sweeping column 인덱스)
-        pol = self.previous_action_policy.squeeze(-1) # shape: (num_envs,)
+        pol = self.action_policy.squeeze(-1) # shape: (num_envs,)
         # print(f"Policy: {pol}")
-        col = self.previous_action_column.squeeze(-1).long() # shape: (num_envs,), 값은 0~3 중 하나
+        col = self.action_column.squeeze(-1).long() # shape: (num_envs,), 값은 0~3 중 하나
         # print(f"Column: {col}")
         
         # 2. 이전 step의 shelf front object 정보에서, 각 환경의 'col' 인덱스에 해당하는 object id를 추출
@@ -525,8 +528,11 @@ class HighlevelDirectEnv(DirectRLEnv):
         swr_cond1 = (pol == 1) & (col != 3)
         
         # 2. 조건 2: 이전 column 분포에서 최대값
-        argmax_col = torch.argmax(self.previous_column_distribution, dim=1)
-        swr_cond2 = (argmax_col == col)
+        # argmax_col = torch.argmax(self.previous_column_distribution, dim=1)
+        # swr_cond2 = (argmax_col == col)
+        # 이전 step의 column 분포에서 상위 2개 인덱스 추출
+        swr_top2 = torch.topk(self.previous_column_distribution, k=2, dim=1)
+        swr_cond2 = (col == swr_top2.indices[:, 0]) | (col == swr_top2.indices[:, 1])
         
         # 3.  환경에서 이전 action column과 이전 action column+1에 해당하는 거리를 각각 추출해서 밀려고 하는 column에 공간이 있는지 확인
         valid_right = (col < 3)
@@ -560,8 +566,11 @@ class HighlevelDirectEnv(DirectRLEnv):
         swl_cond1 = (pol == 2) & (col != 0)
 
         # 2. 조건 2: 이전 step의 column 분포에서 각 환경마다 최대값의 인덱스가 이전 action column과 동일
-        argmax_col1 = torch.argmax(self.previous_column_distribution, dim=1)  # (num_envs,)
-        swl_ond2 = (argmax_col1 == col)
+        # argmax_col1 = torch.argmax(self.previous_column_distribution, dim=1)  # (num_envs,)
+        # swl_ond2 = (argmax_col1 == col)
+        # 이전 step의 column 분포에서 상위 2개 인덱스 추출
+        swl_top2 = torch.topk(self.previous_column_distribution, k=2, dim=1)
+        swl_ond2 = (col == swl_top2.indices[:, 0]) | (col == swl_top2.indices[:, 1])
 
         # 3.  환경에서 이전 action column과 이전 action column-1에 해당하는 거리를 각각 추출해서 밀려고 하는 column에 공간이 있는지 확인
         valid_left = (col > 0)
@@ -590,8 +599,10 @@ class HighlevelDirectEnv(DirectRLEnv):
         gra_cond1 = (pol == 0) & (shelf_obj != target)
         
         # 2. 조건 2: 이전 step의 column 분포에서, 각 환경의 최대값 인덱스가 이전 선택 열(prev_col)과 같아야 함
-        argmax_col2 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
-        gra_cond2 = (argmax_col2 == col)
+        # argmax_col2 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
+        # gra_cond2 = (argmax_col2 == col)
+        gra_top2 = torch.topk(self.previous_column_distribution, k=2, dim=1)
+        gra_cond2 = (col == gra_top2.indices[:, 0]) | (col == gra_top2.indices[:, 1])
         
         # 3. 조건 3: 좌우 coulmn에 object가 있어야 함
         d_curr = self.previous_shelf_front_object_distance.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
@@ -638,18 +649,24 @@ class HighlevelDirectEnv(DirectRLEnv):
         
         #### 패널티 함수 ####
         ## 낮은 확율 분포 grasping 패널티
-        argmax_col3 = torch.argmax(self.previous_column_distribution, dim=1)
-        grasping_penalty_condition = (pol == 0) & (argmax_col3 != col)
+        # argmax_col3 = torch.argmax(self.previous_column_distribution, dim=1)
+        # grasping_penalty_condition = (pol == 0) & (argmax_col3 != col)
+        low_col1 = torch.topk(self.previous_column_distribution, k=2, dim=1, largest=False)
+        grasping_penalty_condition = (pol == 0) & ((col == low_col1.indices[:, 0]) | (col == low_col1.indices[:, 1]))
         grasping_penalty = self.cfg.lp_grasping * grasping_penalty_condition.float()
         
         ## 낮은 확율 분포 sweeping right 패널티
-        argmax_col4 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
-        sweeping_right_penalty_condition = (pol == 1) & (argmax_col4 != col)
+        # argmax_col4 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
+        # sweeping_right_penalty_condition = (pol == 1) & (argmax_col4 != col)
+        low_col2 = torch.topk(self.previous_column_distribution, k=2, dim=1, largest=False)
+        sweeping_right_penalty_condition = (pol == 1) & ((col == low_col2.indices[:, 0]) | (col == low_col2.indices[:, 1]))
         sweeping_right_penalty = self.cfg.lp_sweeping_right * sweeping_right_penalty_condition.float()
         
         ## 낮은 확울 분포 sweeping left 패널티
-        argmax_col5 = torch.argmax(self.previous_column_distribution, dim=1)
-        sweeping_left_penalty_condition = (pol == 2) & (argmax_col5 != col)
+        # argmax_col5 = torch.argmax(self.previous_column_distribution, dim=1)
+        # sweeping_left_penalty_condition = (pol == 2) & (argmax_col5 != col)
+        low_col3 = torch.topk(self.previous_column_distribution, k=2, dim=1, largest=False)
+        sweeping_left_penalty_condition = (pol == 2) & ((col == low_col3.indices[:, 0]) | (col == low_col3.indices[:, 1]))
         sweeping_left_penalty = self.cfg.lp_sweeping_left * sweeping_left_penalty_condition.float()
         
         ## target sweeping 패널티
@@ -673,7 +690,31 @@ class HighlevelDirectEnv(DirectRLEnv):
         grasping_w_n_sweeping_condition = grasping_w_n_right_sweeping_condition | grasping_w_n_left_sweeping_condition
         grasping_w_n_sweeping_penalty = self.cfg.grasping_w_n_sweeping * grasping_w_n_sweeping_condition.float()
         
-        total_reward = (target_grasping_reward + sweeping_right_reward + sweeping_left_reward + grasping_reward + grasping_penalty + sweeping_right_penalty + sweeping_left_penalty + target_sweeping_penalty + no_object_penalty + grasping_w_n_sweeping_penalty)
+        ## 이전 step에서 sweeping을 했던 object를 다시 sweeping하는 경우 패널티
+        # sweeping right → sweeping left 인 경우
+        safe_previous_col_right = torch.where(self.previous_action_column.squeeze(-1) < 3, self.previous_action_column.squeeze(-1) + 1, self.previous_action_column.squeeze(-1))
+        swr_to_swl_penalty_condition = (
+            (self.previous_action_policy.squeeze(-1) == 1) &  # 이전 step이 sweeping right
+            (self.previous_action_column.squeeze(-1) < 3) &     # 이전 column이 3 미만
+            (self.action_policy.squeeze(-1) == 2) &             # 현재 step이 sweeping left
+            (self.action_column.squeeze(-1) == safe_previous_col_right)  # 현재 선택된 column이 이전 step safe_previous_col과 같음
+        )
+        # sweeping left → sweeping right 인 경우
+        safe_previous_col_left = torch.where(self.previous_action_column.squeeze(-1) > 0,self.previous_action_column.squeeze(-1) - 1,self.previous_action_column.squeeze(-1))
+        penalty_condition_left = (
+            (self.previous_action_policy.squeeze(-1) == 2) &  # 이전 스텝이 sweeping left
+            (self.previous_action_column.squeeze(-1) > 0) &     # 이전 column이 0보다 큼
+            (self.action_policy.squeeze(-1) == 1) &             # 현재 스텝이 sweeping right
+            (self.action_column.squeeze(-1) == safe_previous_col_left)  # 현재 선택된 column이 이전 스텝의 (col - 1)과 같음
+        )
+        #최종조건
+        sweeping_again_penalty_condition = swr_to_swl_penalty_condition | penalty_condition_left
+        sweeping_again_penalty = self.cfg.sweeping_again * sweeping_again_penalty_condition.float()
+        
+        total_reward = (target_grasping_reward + sweeping_right_reward + sweeping_left_reward + grasping_reward + grasping_penalty + sweeping_right_penalty + sweeping_left_penalty + target_sweeping_penalty + no_object_penalty + grasping_w_n_sweeping_penalty + sweeping_again_penalty)
+        
+        self.previous_action_policy = self.action_policy.clone()
+        self.previous_action_column = self.action_column.clone()
         
         return total_reward
         
@@ -717,8 +758,8 @@ class HighlevelDirectEnv(DirectRLEnv):
         
         ## ---------------------------------- ##
         ## 오브젝트 배열 기반 터미네이션 작성 ##
-        pol = self.previous_action_policy.squeeze(-1)
-        col = self.previous_action_column.squeeze(-1).long()
+        pol = self.action_policy.squeeze(-1)
+        col = self.action_column.squeeze(-1).long()
         shelf_obj = self.previous_shelf_front_object.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
         target = self.target_id.squeeze(-1)
         
@@ -1000,6 +1041,8 @@ class HighlevelDirectEnv(DirectRLEnv):
         
         self.previous_shelf_object_config[env_ids] = self.shelf_object_config[env_ids].clone()
         
+        self.action_policy[env_ids] = torch.zeros_like(self.action_policy[env_ids])
+        self.action_column[env_ids] = torch.zeros_like(self.action_column[env_ids])
         self.previous_action_policy[env_ids] = torch.zeros_like(self.previous_action_policy[env_ids])
         self.previous_action_column[env_ids] = torch.zeros_like(self.previous_action_column[env_ids])
         
@@ -1014,4 +1057,4 @@ class HighlevelDirectEnv(DirectRLEnv):
         for category, items in self.cfg.object_category.items():
             if item_name in items:
                 return category
-        return None
+        return None#
