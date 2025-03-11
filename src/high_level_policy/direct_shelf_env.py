@@ -165,15 +165,16 @@ class DirectShelfEnv(DirectRLEnv):
         self.actions = actions.to(torch.int)
 
     def _apply_action(self) -> None:
-        policy = self.actions[:, 0]
-        items = self.actions[:, 1]
+        return
+        # policy = self.actions[:, 0]
+        # items = self.actions[:, 1]
 
-        processed_position = self.action_commands[policy]
-        processed_items = items
+        # processed_position = self.action_commands[policy]
+        # processed_items = items
         
-        # Apply actions
-        cur_pos = self._object_collection.data.object_pos_w[]
-        self._object_collection.write_object_state_to_sim()
+        # # Apply actions
+        # cur_pos = self._object_collection.data.object_pos_w
+        # self._object_collection.write_object_state_to_sim()
         
 
     def _get_observations(self) -> dict:
