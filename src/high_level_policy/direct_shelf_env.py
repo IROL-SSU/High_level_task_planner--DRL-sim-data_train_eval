@@ -175,6 +175,11 @@ class DirectShelfEnv(DirectRLEnv):
         # 올바르게 인덱스 지정 (차원 문제 해결)
         self._processed_items = items.long().unsqueeze(-1)  # (2, 1) 형태
 
+<<<<<<< HEAD
+=======
+        # print(self._object_collection.find_objects(name_keys="cup_2"))
+
+>>>>>>> 5a47c0d (reset event add for sweeping motion training)
         # 인덱싱 시 중복 방지
         self._obj_state_w = self._object_collection.data.object_state_w[
             torch.arange(self._object_collection.data.object_state_w.shape[0]),
