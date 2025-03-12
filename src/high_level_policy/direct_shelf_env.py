@@ -44,7 +44,11 @@ from random import shuffle, choice
 @configclass
 class DirectShelfEnvCfg(DirectRLEnvCfg):
     # env
+<<<<<<< HEAD
     decimation = 150
+=======
+    decimation = 1
+>>>>>>> 5a47c0d (reset event add for sweeping motion training)
     episode_length_s = 5.0
     action_space = [{3}, {12}]
     observation_space = 1
@@ -127,6 +131,7 @@ class DirectShelfEnvCfg(DirectRLEnvCfg):
     target_row_index = 3
     spawn_probability = 0.15
     visibility_probability = 0.2
+    sweep_probability = 0.5
 
 
 class DirectShelfEnv(DirectRLEnv):
@@ -138,12 +143,21 @@ class DirectShelfEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
 
         self.target_id = torch.zeros(self.num_envs, 1, device=self.device)
+<<<<<<< HEAD
         self.shelf_object_config = torch.full((self.num_envs, 3, 4), -1, device=self.device) # 각 환경별로 shelf의 object 위치(object id가 0부터 시작하므로 -1로 초기화)
         self.shelf_front_object = torch.full((self.num_envs, 4), -1, device=self.device) # 각 환경별로 shelf의 앞쪽 object id
 
         self.action_commands = torch.tensor(
             [
                 [0, 0, 1.05],  # Action 0
+=======
+        self.shelf_object_config = torch.full(
+            (self.num_envs, 3, 4), -1, device=self.device
+        )
+        self.action_commands = torch.tensor(
+            [
+                [0.5, 0, 0],  # Action 0
+>>>>>>> 5a47c0d (reset event add for sweeping motion training)
                 [0, 0.21, 0],  # Action 1
                 [0, -0.21, 0],  # Action 2
             ],
@@ -168,20 +182,29 @@ class DirectShelfEnv(DirectRLEnv):
         self.actions = actions.to(torch.int)
         
 
+<<<<<<< HEAD
         random_ids = torch.randint(0, 12, (self.num_envs,), device='cuda:0')
         self.actions[:, 1] = random_ids
+=======
+>>>>>>> 5a47c0d (reset event add for sweeping motion training)
         policy = self.actions[:, 0]
         items = self.actions[:, 1]
         processed_position = self.action_commands[policy]
         # 올바르게 인덱스 지정 (차원 문제 해결)
         self._processed_items = items.long().unsqueeze(-1)  # (2, 1) 형태
 
+<<<<<<< HEAD
+=======
+        # print(self._object_collection.find_objects(name_keys="cup_2"))
+
+>>>>>>> 5a47c0d (reset event add for sweeping motion training)
         # 인덱싱 시 중복 방지
         self._obj_state_w = self._object_collection.data.object_state_w[
             torch.arange(self._object_collection.data.object_state_w.shape[0]),
             self._processed_items.squeeze(-1),
         ].clone()
 
+<<<<<<< HEAD
         self._obj_state_w[:, :3] = self._obj_state_w[:, :3] + processed_position[:, :3]
 
         # if self.actions[0, 0] == 0:
@@ -198,6 +221,20 @@ class DirectShelfEnv(DirectRLEnv):
     def _apply_action(self) -> None:
         pass
         
+=======
+        # print(self._processed_items)
+        self._obj_state_w[:, :3] = self._obj_state_w[:, :3] + processed_position[:, :3]
+
+    def _apply_action(self) -> None:
+        self._object_collection.update(dt=self.scene.physics_dt)
+        # print(self._object_collection.data.object_link_pos_w[:, :, :3])
+        # self._object_collection.write_object_link_state_to_sim(
+        #     object_state=self._obj_state_w.unsqueeze(1),
+        #     object_ids=self._processed_items[0],
+        # )
+
+        pass
+>>>>>>> 5a47c0d (reset event add for sweeping motion training)
 
     def _get_observations(self) -> dict:
         obs = torch.zeros(self.num_envs, device=self.device)
@@ -214,8 +251,6 @@ class DirectShelfEnv(DirectRLEnv):
         return torch.zeros(self.num_envs), time_out
 
     def _reset_idx(self, env_ids: Sequence[int] | None):
-        if env_ids is None:
-            env_ids = self.cartpole._ALL_INDICES
         super()._reset_idx(env_ids)
         rows, cols = len(self.cfg.pose_array[0]), len(self.cfg.pose_array[0][0])
 
@@ -270,6 +305,8 @@ class DirectShelfEnv(DirectRLEnv):
         if np.random.rand() < self.cfg.visibility_probability:
             for row_idx in range(random_row - 1, -1, -1):  # 타겟 객체보다 앞쪽 행(row)
                 empty_positions.add((row_idx, random_col))
+
+        # if np.random.rand() < self.cfg.sweep_probability:
 
         # 이미 사용된 위치를 추적하기 위한 집합 # 타겟 위치 추가
         placement_list.append(((random_row, random_col), target_object_name))
@@ -403,6 +440,7 @@ class DirectShelfEnv(DirectRLEnv):
                 object_ids=object_ids[0],
             )
 
+<<<<<<< HEAD
         # 1. placement_list에서 좌표와 object name 추출
         # 좌표 리스트와 object name 리스트로 분리함
         coords_list = [list(pos) for pos, _ in placement_list]  # shape: (N, 2)
@@ -425,6 +463,143 @@ class DirectShelfEnv(DirectRLEnv):
         
 
 
+=======
+        coords_tuple, obj_names_tuple = zip(*placement_list)
+
+        # 2. 좌표 텐서 생성
+        coords = torch.tensor(coords_tuple, device=self.device)  # (N, 2)
+        num_rows = self.shelf_object_config.shape[1]  # shelf_object_config의 행 개수
+        coords[:, 0] = (num_rows - 1) - coords[
+            :, 0
+        ]  # placement_list의 좌표는 왼쪽 아래가 0,0이므로, shelf_object_config (왼쪽 위가 0,0)에 맞추기 위해 행 인덱스 반전
+        obj_ids_tuple = tuple(
+            map(lambda name: self.cfg.object_id_dict.get(name, 0), obj_names_tuple)
+        )  # object name을 object id로 변환
+        object_ids_tensor = torch.tensor(
+            obj_ids_tuple, device=self.device
+        )  # object id 리스트를 텐서로 변환
+        expanded_coords = coords.unsqueeze(0).expand(env_ids.size(0), -1, -1)
+        expanded_object_ids = object_ids_tensor.unsqueeze(0).expand(env_ids.size(0), -1)
+
+        # 값 채워넣기
+        self.shelf_object_config[env_ids] = -1  # 초기화 하는 환경만 -1로 초기화
+        self.shelf_object_config[
+            env_ids.unsqueeze(1), expanded_coords[:, :, 0], expanded_coords[:, :, 1]
+        ] = expanded_object_ids
+
+        if np.random.rand() < self.cfg.sweep_probability:
+            # ✅ `target_id`가 포함된 열 찾기
+            match_mask = self.shelf_object_config == self.target_id[
+                env_ids, 0
+            ].unsqueeze(-1).unsqueeze(
+                -1
+            )  # (num_envs, num_rows, num_cols)
+
+            # ✅ 가장 위쪽 행(row) 찾기 (열 단위로)
+            col_indices = torch.where(match_mask)[2]  # 세 번째 차원이 col index
+
+            # ✅ 중복 제거하여 환경별 고유한 열만 선택
+            unique_envs, unique_indices = torch.unique(
+                torch.nonzero(match_mask, as_tuple=True)[0], return_inverse=True
+            )
+            unique_cols = col_indices[
+                unique_indices
+            ]  # 환경별 유일한 col index 가져오기
+
+            # ✅ "가장 앞쪽(세 번째 행, row_index=2)의 물체" 기준으로 찾기
+            front_row_index = 2  # 사용자 기준 "가장 앞쪽 행"의 row index
+            front_objects = self.shelf_object_config[
+                unique_envs, front_row_index, unique_cols
+            ]  # 해당 열의 가장 앞쪽 물체
+
+            # ✅ 양옆(왼쪽/오른쪽) 물체 찾기
+            left_indices = torch.clamp(unique_cols - 1, min=0)
+            right_indices = torch.clamp(
+                unique_cols + 1, max=self.shelf_object_config.shape[2] - 1
+            )
+
+            left_objects = self.shelf_object_config[
+                unique_envs, front_row_index, left_indices
+            ]
+            right_objects = self.shelf_object_config[
+                unique_envs, front_row_index, right_indices
+            ]
+
+            # ✅ 양쪽에 물체가 모두 존재하는지 확인
+            both_sides_exist = (left_objects != -1) & (right_objects != -1)
+
+            # ✅ `front_objects` 조건 추가 (front_objects가 `-1`이거나 `target_id`와 같으면 pass)
+            valid_front_objects = (front_objects != -1) & (
+                front_objects != self.target_id[unique_envs, 0]
+            )
+
+            # ✅ 랜덤 선택을 위한 마스크
+            random_choice = torch.randint(0, 2, left_objects.shape, device="cuda:0")
+
+            # ✅ 조건별 물체 선택 (중복된 열 제거 후 적용)
+            selected_objects = torch.where(
+                unique_cols == 0,
+                right_objects,  # 가장 왼쪽 열 → 오른쪽 선택
+                torch.where(
+                    unique_cols == self.shelf_object_config.shape[2] - 1,
+                    left_objects,  # 가장 오른쪽 열 → 왼쪽 선택
+                    torch.where(random_choice == 0, left_objects, right_objects),
+                ),  # 그 외에는 랜덤 선택
+            )
+
+            # ✅ 최종 유효한 환경 마스크
+            valid_masks = both_sides_exist & valid_front_objects
+
+            # ✅ 유효한 환경 인덱스 & 물체 인덱스 추출
+            valid_envs = torch.nonzero(valid_masks, as_tuple=True)[0].squeeze(
+                -1
+            )  # 선택된 환경의 인덱스
+            valid_objects = selected_objects[
+                valid_masks
+            ]  # 해당 환경에서 선택된 물체 ID
+            print(valid_envs)
+            # ✅ 선택된 환경의 물체 위치 가져오기
+            selected_positions = self._object_collection.data.object_pos_w[
+                valid_envs, valid_objects, :3
+            ].clone()  # clone()을 사용하여 직접 수정 가능하게 만듦
+
+            selected_positions[:, 2] = 0.7  # Z 좌표 업데이트
+
+            # ✅ `orientations` 및 `velocities` 크기 맞추기
+            num_valid = valid_envs.shape[0]  # 선택된 환경 개수
+
+            orientations = torch.empty(
+                (num_valid, 4), device=self.device
+            )  # [num_valid, 4]
+            orientations[:, :] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device)
+
+            velocities = torch.zeros(
+                (num_valid, 6), device=self.device
+            )  # [num_valid, 6]
+
+            # ✅ 차원 일치 문제 해결
+            final_object_state = torch.cat(
+                (selected_positions, orientations, velocities), dim=1
+            ).unsqueeze(
+                1
+            )  # [num_valid, 1, 13]
+
+            object_ids = valid_objects.unsqueeze(1)  # Shape: [2, 1]
+            if object_ids.numel() > 0:
+                # ✅ 🔹 시뮬레이션 업데이트 실행 🔹
+                self._object_collection.write_object_link_state_to_sim(
+                    final_object_state,
+                    env_ids=env_ids,
+                    object_ids=object_ids[0],
+                )
+
+                mask = (
+                    self.shelf_object_config == valid_objects[:, None, None]
+                )  # (num_envs, num_rows, num_cols)
+
+                # 2. 해당 위치를 `-1`로 변경
+                self.shelf_object_config[mask] = -1
+>>>>>>> 5a47c0d (reset event add for sweeping motion training)
 
     def get_category(self, item_name):
         for category, items in self.cfg.object_category.items():
