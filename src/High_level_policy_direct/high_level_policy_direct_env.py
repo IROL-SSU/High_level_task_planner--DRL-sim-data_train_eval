@@ -97,7 +97,7 @@ class HighlevelDirectEnvCfg(DirectRLEnvCfg):
         width=640,
         height=480,
     )
-    write_image_to_file = True
+    write_image_to_file = False
     
     mean=[0.650085384273529, 0.6429061861377292, 0.6164081222491794]
     std=[0.1687737046184826, 0.1750711261287332, 0.19902168659025637]
@@ -167,10 +167,10 @@ class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     lp_grasping = -5.0
     lp_sweeping_right = -5.0
     lp_sweeping_left = -5.0
-    traget_sweeping = -60.0
+    traget_sweeping = -20.0
     empty_action = -10.0
-    grasping_w_n_sweeping = -60.0
-    sweeping_again = -30.0
+    grasping_w_n_sweeping = -10.0
+    sweeping_again = -10.0
     
     sweeping_no_enough = -10.0
 
@@ -415,7 +415,7 @@ class HighlevelDirectEnv(DirectRLEnv):
         max_vals = pred.view(B, -1).max(dim=1)[0].view(B, 1, 1)
         # 각 환경마다 최대값이 0보다 큰 경우에만 정규화 수행
         normalized_preds = torch.where(max_vals > 0, pred / max_vals, pred)
-        gain = 3.0  # 비선형 가중치 적용을 위한 gain 값
+        gain = 2.0  # 비선형 가중치 적용을 위한 gain 값
         weighted_preds = normalized_preds * torch.exp(-gain * (1 - normalized_preds))
         # y축(행 방향, 즉 H축)으로 합산 → 각 환경별 분포: (B, W)
         current_distributions = weighted_preds.sum(dim=1)  # shape: (num_envs, 640)
@@ -528,11 +528,11 @@ class HighlevelDirectEnv(DirectRLEnv):
         swr_cond1 = (pol == 1) & (col != 3)
         
         # 2. 조건 2: 이전 column 분포에서 최대값
-        # argmax_col = torch.argmax(self.previous_column_distribution, dim=1)
-        # swr_cond2 = (argmax_col == col)
+        argmax_col = torch.argmax(self.previous_column_distribution, dim=1)
+        swr_cond2 = (argmax_col == col)
         # 이전 step의 column 분포에서 상위 2개 인덱스 추출
-        swr_top2 = torch.topk(self.previous_column_distribution, k=2, dim=1)
-        swr_cond2 = (col == swr_top2.indices[:, 0]) | (col == swr_top2.indices[:, 1])
+        # swr_top2 = torch.topk(self.previous_column_distribution, k=2, dim=1)
+        # swr_cond2 = (col == swr_top2.indices[:, 0]) | (col == swr_top2.indices[:, 1])
         
         # 3.  환경에서 이전 action column과 이전 action column+1에 해당하는 거리를 각각 추출해서 밀려고 하는 column에 공간이 있는지 확인
         valid_right = (col < 3)
@@ -566,11 +566,11 @@ class HighlevelDirectEnv(DirectRLEnv):
         swl_cond1 = (pol == 2) & (col != 0)
 
         # 2. 조건 2: 이전 step의 column 분포에서 각 환경마다 최대값의 인덱스가 이전 action column과 동일
-        # argmax_col1 = torch.argmax(self.previous_column_distribution, dim=1)  # (num_envs,)
-        # swl_ond2 = (argmax_col1 == col)
+        argmax_col1 = torch.argmax(self.previous_column_distribution, dim=1)  # (num_envs,)
+        swl_ond2 = (argmax_col1 == col)
         # 이전 step의 column 분포에서 상위 2개 인덱스 추출
-        swl_top2 = torch.topk(self.previous_column_distribution, k=2, dim=1)
-        swl_ond2 = (col == swl_top2.indices[:, 0]) | (col == swl_top2.indices[:, 1])
+        # swl_top2 = torch.topk(self.previous_column_distribution, k=2, dim=1)
+        # swl_ond2 = (col == swl_top2.indices[:, 0]) | (col == swl_top2.indices[:, 1])
 
         # 3.  환경에서 이전 action column과 이전 action column-1에 해당하는 거리를 각각 추출해서 밀려고 하는 column에 공간이 있는지 확인
         valid_left = (col > 0)
@@ -599,10 +599,10 @@ class HighlevelDirectEnv(DirectRLEnv):
         gra_cond1 = (pol == 0) & (shelf_obj != target)
         
         # 2. 조건 2: 이전 step의 column 분포에서, 각 환경의 최대값 인덱스가 이전 선택 열(prev_col)과 같아야 함
-        # argmax_col2 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
-        # gra_cond2 = (argmax_col2 == col)
-        gra_top2 = torch.topk(self.previous_column_distribution, k=2, dim=1)
-        gra_cond2 = (col == gra_top2.indices[:, 0]) | (col == gra_top2.indices[:, 1])
+        argmax_col2 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
+        gra_cond2 = (argmax_col2 == col)
+        # gra_top2 = torch.topk(self.previous_column_distribution, k=2, dim=1)
+        # gra_cond2 = (col == gra_top2.indices[:, 0]) | (col == gra_top2.indices[:, 1])
         
         # 3. 조건 3: 좌우 coulmn에 object가 있어야 함
         d_curr = self.previous_shelf_front_object_distance.gather(dim=1, index=col.unsqueeze(1)).squeeze(1)
@@ -649,24 +649,24 @@ class HighlevelDirectEnv(DirectRLEnv):
         
         #### 패널티 함수 ####
         ## 낮은 확율 분포 grasping 패널티
-        # argmax_col3 = torch.argmax(self.previous_column_distribution, dim=1)
-        # grasping_penalty_condition = (pol == 0) & (argmax_col3 != col)
-        low_col1 = torch.topk(self.previous_column_distribution, k=2, dim=1, largest=False)
-        grasping_penalty_condition = (pol == 0) & ((col == low_col1.indices[:, 0]) | (col == low_col1.indices[:, 1]))
+        argmax_col3 = torch.argmax(self.previous_column_distribution, dim=1)
+        grasping_penalty_condition = (pol == 0) & (argmax_col3 != col)
+        # low_col1 = torch.topk(self.previous_column_distribution, k=2, dim=1, largest=False)
+        # grasping_penalty_condition = (pol == 0) & ((col == low_col1.indices[:, 0]) | (col == low_col1.indices[:, 1]))
         grasping_penalty = self.cfg.lp_grasping * grasping_penalty_condition.float()
         
         ## 낮은 확율 분포 sweeping right 패널티
-        # argmax_col4 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
-        # sweeping_right_penalty_condition = (pol == 1) & (argmax_col4 != col)
-        low_col2 = torch.topk(self.previous_column_distribution, k=2, dim=1, largest=False)
-        sweeping_right_penalty_condition = (pol == 1) & ((col == low_col2.indices[:, 0]) | (col == low_col2.indices[:, 1]))
+        argmax_col4 = torch.argmax(self.previous_column_distribution, dim=1)  # shape: (num_envs,)
+        sweeping_right_penalty_condition = (pol == 1) & (argmax_col4 != col)
+        # low_col2 = torch.topk(self.previous_column_distribution, k=2, dim=1, largest=False)
+        # sweeping_right_penalty_condition = (pol == 1) & ((col == low_col2.indices[:, 0]) | (col == low_col2.indices[:, 1]))
         sweeping_right_penalty = self.cfg.lp_sweeping_right * sweeping_right_penalty_condition.float()
         
         ## 낮은 확울 분포 sweeping left 패널티
-        # argmax_col5 = torch.argmax(self.previous_column_distribution, dim=1)
-        # sweeping_left_penalty_condition = (pol == 2) & (argmax_col5 != col)
-        low_col3 = torch.topk(self.previous_column_distribution, k=2, dim=1, largest=False)
-        sweeping_left_penalty_condition = (pol == 2) & ((col == low_col3.indices[:, 0]) | (col == low_col3.indices[:, 1]))
+        argmax_col5 = torch.argmax(self.previous_column_distribution, dim=1)
+        sweeping_left_penalty_condition = (pol == 2) & (argmax_col5 != col)
+        # low_col3 = torch.topk(self.previous_column_distribution, k=2, dim=1, largest=False)
+        # sweeping_left_penalty_condition = (pol == 2) & ((col == low_col3.indices[:, 0]) | (col == low_col3.indices[:, 1]))
         sweeping_left_penalty = self.cfg.lp_sweeping_left * sweeping_left_penalty_condition.float()
         
         ## target sweeping 패널티
