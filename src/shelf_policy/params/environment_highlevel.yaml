@@ -1,29 +1,17 @@
 objects:
-<<<<<<< HEAD
-    can_1: omniverse://localhost/Library/Shelf/Object/Can_6.usd
-    can_2: omniverse://localhost/Library/Shelf/Object/Can_7.usd
-    can_3: omniverse://localhost/Library/Shelf/Object/Can_8.usd
-=======
->>>>>>> 5a47c0d (reset event add for sweeping motion training)
     cup_1: omniverse://localhost/Library/Shelf/Object/Cup_1.usd
     cup_2: omniverse://localhost/Library/Shelf/Object/Cup_2.usd
     cup_3: omniverse://localhost/Library/Shelf/Object/Cup_4.usd
     mug_1: omniverse://localhost/Library/Shelf/Object/Mug_2.usd
     mug_2: omniverse://localhost/Library/Shelf/Object/Mug_3.usd
     mug_3: omniverse://localhost/Library/Shelf/Object/Mug_4.usd
-<<<<<<< HEAD
-    bottle_1 : omniverse://localhost/Library/Shelf/Object/Bottle_6.usd
-    bottle_2 : omniverse://localhost/Library/Shelf/Object/Bottle_7.usd
-    bottle_3 : omniverse://localhost/Library/Shelf/Object/Bottle_8.usd
-
-=======
     can_1: omniverse://localhost/Library/Shelf/Object/Can_6.usd
     can_2: omniverse://localhost/Library/Shelf/Object/Can_7.usd
     can_3: omniverse://localhost/Library/Shelf/Object/Can_8.usd
     bottle_1 : omniverse://localhost/Library/Shelf/Object/Bottle_6.usd
     bottle_2 : omniverse://localhost/Library/Shelf/Object/Bottle_7.usd
     bottle_3 : omniverse://localhost/Library/Shelf/Object/Bottle_8.usd
->>>>>>> 5a47c0d (reset event add for sweeping motion training)
+
 pose:
     bottle_1 : [-0.82, -0.34, 1.05, 1.0, 0.0, 0.0, 0.0]
     bottle_2 : [-0.82, -0.12, 1.05, 1.0, 0.0, 0.0, 0.0]
