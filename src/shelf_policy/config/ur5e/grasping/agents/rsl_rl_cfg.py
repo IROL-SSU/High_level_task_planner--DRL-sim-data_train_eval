@@ -18,7 +18,7 @@ class ShelfGraspPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 8000
     save_interval = 50
     seed = 41
-    experiment_name = "Shelf_sweep"
+    experiment_name = "UR5e_shelf_grasp"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,

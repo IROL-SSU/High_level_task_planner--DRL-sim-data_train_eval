@@ -37,7 +37,14 @@ def randomize_scene(
     rows, cols = len(pose_array[0]), len(pose_array[0][0])
     object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
 
-    target_object_name = choice(list(asset_dict.keys()))
+
+    if task_mode == "grasping":
+        target_object_name = choice(["cup_1", "cup_2", "cup_3", "can_1"])
+        
+    elif task_mode == "sweeping_right":
+        target_object_name = choice(list(asset_dict.keys()))
+
+    # print(target_object_name)
 
     target_object_id = object_collection.find_objects(name_keys=target_object_name)
 
@@ -88,6 +95,25 @@ def randomize_scene(
                 object_ids=object_ids[0]
             )
 
+    if task_mode == "grasping":
+
+        adjacent_indices = grasping_mode(target_index, rows, cols, env.device)
+
+        for adjacent in adjacent_indices:
+            object_index = adjacent[0] * cols + adjacent[1]
+            object_name = asset_keys_list[object_index]
+
+            pose_instance = pose_array_tensor[0, adjacent[0], adjacent[1]]
+            positions = pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
+            positions[:, 2] = ceiling_height  # 높이 변경
+
+            object_ids = object_collection.find_objects(name_keys=object_name)
+            object_collection.write_object_link_pose_to_sim(
+                torch.cat((positions, orientations), dim=1).unsqueeze(1),
+                env_ids=env_ids,
+                object_ids=object_ids[0]
+            )
+
 
 def sweeping_right_mode(target_index: int, rows: int, cols: int, device):
     """
@@ -121,3 +147,22 @@ def sweeping_right_mode(target_index: int, rows: int, cols: int, device):
     adjacent_array = torch.cat((front_indices, right_index, diagonal_indices), dim=0)
 
     return adjacent_array
+
+
+def grasping_mode(target_index: int, rows: int, cols: int, device):
+    """
+    Identify objects in front, right, and diagonal positions of the target.
+    If the target is in the last row, include all objects in the front rows.
+    Returns results as a GPU Tensor.
+    """
+    target_row = target_index // cols
+    target_col = target_index % cols
+
+    # (1) 앞쪽 찾기 (모든 앞쪽 행 포함)
+    if target_row > 0:
+        front_rows = torch.arange(target_row - 1, -1, -1, device=device)
+        front_indices = torch.stack((front_rows, torch.full_like(front_rows, target_col)), dim=1)
+    else:
+        front_indices = torch.empty((0, 2), dtype=torch.int64, device=device)
+
+    return front_indices

@@ -87,13 +87,6 @@ class ShelfSceneCfg(InteractiveSceneCfg):
 class CommandsCfg:
     """Command terms for the MDP."""
 
-    target_goal_pos = mdp.DynamicObjectGoalPosCommandCfg(
-        asset_name=MISSING,
-        asset_dict=MISSING,
-        object_id_dict_rev=MISSING,
-        init_pos_offset=(0.0, 0.15, 0.0),
-        debug_vis=True,)
-
 
 @configclass
 class ActionsCfg:
@@ -117,7 +110,6 @@ class ObservationsCfg:
         target_obs_state = ObsTerm(func=mdp.MA_object_position_in_RRF, params={"object_id_dict_rev": MISSING}, noise = Unoise(n_min=-0.01, n_max=0.01))
         ee_pos = ObsTerm(func=mdp.ee_pos_r)
         ee_quat = ObsTerm(func=mdp.ee_quat_r)
-        goal_pos = ObsTerm(func=mdp.MA_target_goal_command, params={"command_name": MISSING})
 
 
         def __post_init__(self):
@@ -150,40 +142,14 @@ class RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
 
-    reaching = RewTerm(
-        func=mdp.rewards_sweep_ur5e.reward_for_hand_reaching,
-        weight=3.0,
-        params={"object_id_dict_rev": MISSING}
-    )
-
-    orientation = RewTerm(
-        func=mdp.rewards_sweep_ur5e.ee_Align,
-        weight=3.0,
-        params={},
-    )
-
-    sweeping_object = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_target, 
-                              params={"command_name": "target_goal_pos"}, 
-                              weight=5.0)
-    
-    # # sweeping_bonus = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_bonus, params={"command_name": "target_goal_pos"}, weight=7.0)
-
-    homing_after_sweep = RewTerm(func=mdp.rewards_sweep_ur5e.homing_reward, params={"command_name": "target_goal_pos"}, weight=12.0)
-
-    shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.2)
-
-    object_collision = RewTerm(func=mdp.rewards_sweep_ur5e.object_collision, params={}, weight=-0.5)
-
-    object_flip = RewTerm(func=mdp.rewards_sweep_ur5e.object_flip, params={}, weight=-0.5)
-
 
 @configclass
 class TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-    object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=True, params={"height_condition":MISSING})
-    # shelf_collision = DoneTerm(func=mdp.shelf_collision_termination, params={"threshold": 0.1})
+    object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING, "rotation_condition": MISSING})
+    shelf_collision = DoneTerm(func=mdp.shelf_collision_termination, time_out=False, params={"threshold": 0.02})
 
 
 @configclass
@@ -225,7 +191,7 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.decimation = 2
-        self.episode_length_s = 3.0
+        self.episode_length_s = 4.0
 
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
