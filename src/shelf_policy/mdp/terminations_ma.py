@@ -46,16 +46,26 @@ def drop_object_termination(env: ManagerBasedRLEnv,
     roll = normalize_angle(roll)
     pitch = normalize_angle(pitch)
 
-
-
     # ✅ 물체가 넘어졌는지 확인 (roll, pitch가 특정 값 이상이면 뒤집힌 것으로 간주)
     is_flipped = (torch.abs(roll) > rotation_condition) | (torch.abs(pitch) > rotation_condition)
 
     # ✅ 하나라도 물체가 떨어지거나 넘어졌다면 episode 종료
     episode_done = torch.any(is_dropped | is_flipped, dim=1)  # (N,)
 
+    
     return episode_done  # (N,) -> 환경별 episode 종료 여부
 
 
-
+def shelf_collision_termination(env: ManagerBasedRLEnv,
+                                shelf_cfg: SceneEntityCfg = SceneEntityCfg("shelf"),
+                                threshold: float = MISSING):
     
+    shelf: RigidObject = env.scene[shelf_cfg.name]
+
+    shelf_vel = shelf.data.root_vel_w
+    shelf_vel.sum()
+
+    return torch.norm(shelf_vel , dim=-1, p=2)> threshold
+
+
+

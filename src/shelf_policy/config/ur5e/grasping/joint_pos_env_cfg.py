@@ -14,7 +14,7 @@ from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.sim.schemas.schemas_cfg import MassPropertiesCfg
 
 from shelf_policy import mdp
-from shelf_policy.shelf_multi_obj_env_cfg import ShelfEnvCfg
+from shelf_policy.shelf_multi_obj_grasp_env_cfg import ShelfEnvCfg
 import torch
 import os
 
@@ -56,7 +56,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
 
 
         # YAML 파일 로드
-        object_cfgs = load_yaml_config(yaml_path="src/shelf_policy/params/environment.yaml")
+        object_cfgs = load_yaml_config(yaml_path="src/shelf_policy/params/environment_KTH.yaml")
 
 
         rigid_obj_dict = {}
@@ -83,7 +83,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
                                                                             max_depenetration_velocity=5.0,
                                                                             disable_gravity=False,
                                                                         ),
-                                                                        mass_props=MassPropertiesCfg(mass=0.3),
+                                                                        mass_props=MassPropertiesCfg(mass=0.5),
                                                                     ),
                                                                 )
             
@@ -96,7 +96,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         
         # Listens to the required transforms
         marker_cfg = FRAME_MARKER_CFG.copy()
-        marker_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
+        marker_cfg.markers["frame"].scale = (0.05, 0.05, 0.05)
         marker_cfg.prim_path = "/Visuals/FrameTransformer"
         self.scene.ee_frame = FrameTransformerCfg(
             prim_path="{ENV_REGEX_NS}/Robot/base_link",
@@ -113,19 +113,58 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             ],
         )
 
-        # asset dict
-        # asset_dict: dict = {"objects": ["target", "cup2", "cup3"]}
+        self.scene.finger_frame = FrameTransformerCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base_link",
+            debug_vis=True,
+            visualizer_cfg=marker_cfg,
+            target_frames=[
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    name="l_finger",
+                    offset=OffsetCfg(
+                        pos=(0.0, -0.07, 0.14),
+                    ),
+                ),
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    name="r_finger",
+                    offset=OffsetCfg(
+                        pos=(0.0, 0.07, 0.14),
+                    ),
+                ),
+            ],
+        )
+        
+        self.scene.wrist_frame = FrameTransformerCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base_link",
+            debug_vis=True,
+            visualizer_cfg=marker_cfg,
+            target_frames=[
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    name="wrist",
+                    offset=OffsetCfg(
+                        pos=(0.0, 0.0, -0.14),
+                    ),
+                ),
+            ],
+        )
 
+
+
+        self.observations.policy.target_obs_state.params["object_id_dict_rev"] = object_id_dict_rev
 
         self.events.object_spawn.params["asset_dict"] = rigid_obj_dict
-        self.events.object_spawn.params["pose_array"] = torch.tensor(load_and_reshape_pose(object_pose_dict), device=self.sim.device)
+        
+        self.events.object_spawn.params["pose_array"] = load_and_reshape_pose(object_pose_dict)
         self.events.object_spawn.params["object_id_dict"] = object_id_dict
         self.events.object_spawn.params["object_id_dict_rev"] = object_id_dict_rev
         self.events.object_spawn.params["ceiling_height"] = 1.8
-        self.events.object_spawn.params["task_mode"] = "sweeping_left"
+        self.events.object_spawn.params["task_mode"] = "grasping"
 
-        # print(self.scene.target)
-        
+        self.terminations.object_drop.params["height_condition"] = 0.99
+        self.terminations.object_drop.params["rotation_condition"] = 0.9
+
         
 
 

@@ -83,7 +83,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
                                                                             max_depenetration_velocity=5.0,
                                                                             disable_gravity=False,
                                                                         ),
-                                                                        mass_props=MassPropertiesCfg(mass=0.3),
+                                                                        mass_props=MassPropertiesCfg(mass=0.5),
                                                                     ),
                                                                 )
             
@@ -122,14 +122,14 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
                     prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
                     name="l_finger",
                     offset=OffsetCfg(
-                        pos=(0.0, -0.07, 0.11),
+                        pos=(0.0, -0.07, 0.14),
                     ),
                 ),
                 FrameTransformerCfg.FrameCfg(
                     prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
                     name="r_finger",
                     offset=OffsetCfg(
-                        pos=(0.0, 0.07, 0.11),
+                        pos=(0.0, 0.07, 0.14),
                     ),
                 ),
             ],
