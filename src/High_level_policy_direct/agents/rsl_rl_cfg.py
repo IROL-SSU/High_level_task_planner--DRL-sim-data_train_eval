@@ -16,7 +16,7 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
 class HighLevelDirectPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 8000
-    save_interval = 50
+    save_interval = 5
     seed = 0
     experiment_name = "High_level_direct"
     empirical_normalization = False
