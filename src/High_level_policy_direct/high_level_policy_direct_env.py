@@ -1263,8 +1263,14 @@ class HighlevelDirectEnv(DirectRLEnv):
 
                 mask = (self.shelf_object_config[valid_envs, :] == valid_objects[:, None, None])  # (num_envs, num_rows, num_cols)
 
-                # 2. 해당 위치를 `-1`로 변경
-                self.shelf_object_config[valid_envs, mask.any(dim=0)] = -1
+                # ✅ `valid_envs`에 해당하는 위치만 가져오기
+                env_indices, row_indices, col_indices = torch.where(mask)  # valid_objects가 있는 위치 찾기
+
+                # ✅ `valid_envs`에 속하는 것만 필터링
+                valid_mask = torch.isin(env_indices, valid_envs)
+
+                # ✅ `self.shelf_object_config` 업데이트 (for 없이 병렬 적용)
+                self.shelf_object_config[env_indices[valid_mask], row_indices[valid_mask], col_indices[valid_mask]] = -1  
 
         
 
