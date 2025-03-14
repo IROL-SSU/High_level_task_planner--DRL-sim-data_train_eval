@@ -447,11 +447,7 @@ class DirectShelfEnv(DirectRLEnv):
         
         if np.random.rand() < self.cfg.sweep_probability:
             # ✅ `target_id`가 포함된 열 찾기
-            match_mask = self.shelf_object_config == self.target_id[
-                env_ids, 0
-            ].unsqueeze(-1).unsqueeze(
-                -1
-            )  # (num_envs, num_rows, num_cols)
+            match_mask = self.shelf_object_config[env_ids, :] == self.target_id[env_ids, 0].unsqueeze(-1).unsqueeze(-1)  # (num_envs, num_rows, num_cols)
 
             # ✅ 가장 위쪽 행(row) 찾기 (열 단위로)
             col_indices = torch.where(match_mask)[2]  # 세 번째 차원이 col index
