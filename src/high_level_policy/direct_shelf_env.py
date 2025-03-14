@@ -140,10 +140,25 @@ class DirectShelfEnv(DirectRLEnv):
         super().__init__(cfg, render_mode, **kwargs)
 
         self.target_id = torch.zeros(self.num_envs, 1, device=self.device)
-
-        self.shelf_object_config = torch.full(
-            (self.num_envs, 3, 4), -1, device=self.device
-        )
+        self.previous_distribution = torch.zeros(self.num_envs, 640, device=self.device) # FCN 출력에서 가져온 이전 step에서의 640 column 분포
+        self.column_distribution = torch.zeros(self.num_envs, 4, device=self.device) # 4개의 column에 대한 distribution 최대 값들
+        
+        self.shelf_object_config = torch.full((self.num_envs, 3, 4), -1, device=self.device) # 각 환경별로 shelf의 object 위치(object id가 0부터 시작하므로 -1로 초기화)
+        self.shelf_front_object = torch.full((self.num_envs, 4), -1, device=self.device) # 각 환경별로 shelf의 앞쪽 object id
+        self.shelf_front_object_distance = torch.zeros(self.num_envs, 4, device=self.device) # 각 환경별로 shelf의 앞쪽 object까지의 거리
+        
+        self.previous_shelf_object_config = torch.full((self.num_envs, 3, 4), -1, device=self.device) # 이전 step에서의 shelf의 object 위치(object id가 0부터 시작하므로 -1로 초기화)
+        self.previous_shelf_front_object = torch.full((self.num_envs, 4), -1, device=self.device) # 이전 step에서의 shelf의 앞쪽 object id
+        self.previous_shelf_front_object_distance = torch.zeros(self.num_envs, 4, device=self.device) # 이전 step에서의 shelf의 앞쪽 object까지의 거리
+        self.previous_column_distribution = torch.zeros(self.num_envs, 4, device=self.device) # 이전 step에서의 4개의 column에 대한 distribution 최대 값들
+        
+        self.action_policy = torch.full((self.num_envs, 1), 0, device=self.device) # 현재 step에서의 action policy
+        self.action_column = torch.full((self.num_envs, 1), 0, device=self.device) # 현재 step에서 선택된 action column
+        
+        self.previous_action_policy = torch.full((self.num_envs, 1), 0, device=self.device) # 이전 step에서의 action policy (초기값은 0)
+        self.previous_action_column = torch.full((self.num_envs, 1), 0, device=self.device) # 이전 step에서의 action column (초기값은 0)
+        
+        self.target_grasped = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device) # 각 환경별로 target grasped 여부
         self.action_commands = torch.tensor(
             [
                 [0.5, 0, 0],  # Action 0                [0, 0.21, 0],  # Action 1
@@ -210,6 +225,9 @@ class DirectShelfEnv(DirectRLEnv):
 
     def _reset_idx(self, env_ids: Sequence[int] | None):
         super()._reset_idx(env_ids)
+        self.previous_distribution[env_ids, :].zero_()
+        self.column_distribution[env_ids, :].zero_()
+        
         rows, cols = len(self.cfg.pose_array[0]), len(self.cfg.pose_array[0][0])
 
         # 사용자 입력 기준의 target_row_index를 배열 인덱스로 변환
@@ -232,6 +250,9 @@ class DirectShelfEnv(DirectRLEnv):
         self.target_id[env_ids, 0] = target_object_id
 
         target_object_name = self.cfg.object_id_dict_rev[str(target_object_id)]
+        # print("-------------------new episode-------------------")
+        # print(f"Target object name: {target_object_name}")
+        # print(f"Target object id: {target_object_id}")
 
         target_category = self.get_category(target_object_name)
         same_category_items = self.cfg.object_category[target_category].copy()
@@ -263,8 +284,6 @@ class DirectShelfEnv(DirectRLEnv):
         if np.random.rand() < self.cfg.visibility_probability:
             for row_idx in range(random_row - 1, -1, -1):  # 타겟 객체보다 앞쪽 행(row)
                 empty_positions.add((row_idx, random_col))
-
-        # if np.random.rand() < self.cfg.sweep_probability:
 
         # 이미 사용된 위치를 추적하기 위한 집합 # 타겟 위치 추가
         placement_list.append(((random_row, random_col), target_object_name))
@@ -389,7 +408,6 @@ class DirectShelfEnv(DirectRLEnv):
         for index, object_name in enumerate(rest_objects):
             pose_instance = pose_array_tensor[0, index // cols, index % cols]
             positions = pose_instance[:3] + self.scene.env_origins[env_ids, 0:3]
-
             positions[:, 2] = 1.8
             object_ids = self._object_collection.find_objects(name_keys=object_name)
             self._object_collection.write_object_link_state_to_sim(
@@ -397,142 +415,153 @@ class DirectShelfEnv(DirectRLEnv):
                 env_ids=env_ids,
                 object_ids=object_ids[0],
             )
-
+            
+        # print(placement_list)
+        # 1. placement_list에서 좌표와 object name 추출
+        # 좌표 리스트와 object name 리스트로 분리함
         coords_tuple, obj_names_tuple = zip(*placement_list)
-
+        
         # 2. 좌표 텐서 생성
         coords = torch.tensor(coords_tuple, device=self.device)  # (N, 2)
-        num_rows = self.shelf_object_config.shape[1]  # shelf_object_config의 행 개수
-        coords[:, 0] = (num_rows - 1) - coords[
-            :, 0
-        ]  # placement_list의 좌표는 왼쪽 아래가 0,0이므로, shelf_object_config (왼쪽 위가 0,0)에 맞추기 위해 행 인덱스 반전
-        obj_ids_tuple = tuple(
-            map(lambda name: self.cfg.object_id_dict.get(name, 0), obj_names_tuple)
-        )  # object name을 object id로 변환
-        object_ids_tensor = torch.tensor(
-            obj_ids_tuple, device=self.device
-        )  # object id 리스트를 텐서로 변환
+        num_rows = self.shelf_object_config.shape[1] # shelf_object_config의 행 개수
+        coords[:, 0] = (num_rows - 1) - coords[:, 0] # placement_list의 좌표는 왼쪽 아래가 0,0이므로, shelf_object_config (왼쪽 위가 0,0)에 맞추기 위해 행 인덱스 반전
+        obj_ids_tuple = tuple(map(lambda name: self.cfg.object_id_dict.get(name, 0), obj_names_tuple)) # object name을 object id로 변환
+        object_ids_tensor = torch.tensor(obj_ids_tuple, device=self.device) # object id 리스트를 텐서로 변환
         expanded_coords = coords.unsqueeze(0).expand(env_ids.size(0), -1, -1)
         expanded_object_ids = object_ids_tensor.unsqueeze(0).expand(env_ids.size(0), -1)
-
+        
         # 값 채워넣기
-        self.shelf_object_config[env_ids] = -1  # 초기화 하는 환경만 -1로 초기화
-        self.shelf_object_config[
-            env_ids.unsqueeze(1), expanded_coords[:, :, 0], expanded_coords[:, :, 1]
-        ] = expanded_object_ids
+        self.shelf_object_config[env_ids] = -1 # 초기화 하는 환경만 -1로 초기화
+        self.shelf_object_config[env_ids.unsqueeze(1),
+                           expanded_coords[:, :, 0],
+                           expanded_coords[:, :, 1]] = expanded_object_ids
+        
+        self.previous_shelf_object_config[env_ids] = self.shelf_object_config[env_ids].clone()
+        
+        self.action_policy[env_ids] = torch.zeros_like(self.action_policy[env_ids])
+        self.action_column[env_ids] = torch.zeros_like(self.action_column[env_ids])
+        self.previous_action_policy[env_ids] = torch.zeros_like(self.previous_action_policy[env_ids])
+        self.previous_action_column[env_ids] = torch.zeros_like(self.previous_action_column[env_ids])
+        
+        self.target_grasped[env_ids] = False
+        
+        
+        # ✅ `target_id`가 포함된 열 찾기
+        match_mask = self.shelf_object_config == self.target_id[
+            env_ids, 0
+        ].unsqueeze(-1).unsqueeze(
+            -1
+        )  # (num_envs, num_rows, num_cols)
 
-        if np.random.rand() < self.cfg.sweep_probability:
-            # ✅ `target_id`가 포함된 열 찾기
-            match_mask = self.shelf_object_config == self.target_id[
-                env_ids, 0
-            ].unsqueeze(-1).unsqueeze(
-                -1
+        # ✅ 가장 위쪽 행(row) 찾기 (열 단위로)
+        col_indices = torch.where(match_mask)[2]  # 세 번째 차원이 col index
+
+        # ✅ 중복 제거하여 환경별 고유한 열만 선택
+        unique_envs, unique_indices = torch.unique(
+            torch.nonzero(match_mask, as_tuple=True)[0], return_inverse=True
+        )
+        unique_cols = col_indices[
+            unique_indices
+        ]  # 환경별 유일한 col index 가져오기
+
+        # ✅ "가장 앞쪽(세 번째 행, row_index=2)의 물체" 기준으로 찾기
+        front_row_index = 2  # 사용자 기준 "가장 앞쪽 행"의 row index
+        front_objects = self.shelf_object_config[
+            unique_envs, front_row_index, unique_cols
+        ]  # 해당 열의 가장 앞쪽 물체
+
+        # ✅ 양옆(왼쪽/오른쪽) 물체 찾기
+        left_indices = torch.clamp(unique_cols - 1, min=0)
+        right_indices = torch.clamp(
+            unique_cols + 1, max=self.shelf_object_config.shape[2] - 1
+        )
+
+        left_objects = self.shelf_object_config[
+            unique_envs, front_row_index, left_indices
+        ]
+        right_objects = self.shelf_object_config[
+            unique_envs, front_row_index, right_indices
+        ]
+
+        # ✅ 양쪽에 물체가 모두 존재하는지 확인
+        both_sides_exist = (left_objects != -1) & (right_objects != -1)
+
+        # ✅ `front_objects` 조건 추가 (front_objects가 `-1`이거나 `target_id`와 같으면 pass)
+        valid_front_objects = (front_objects != -1) & (
+            front_objects != self.target_id[unique_envs, 0]
+        )
+
+        # ✅ 랜덤 선택을 위한 마스크
+        random_choice = torch.randint(0, 2, left_objects.shape, device="cuda:0")
+
+        # ✅ 조건별 물체 선택 (중복된 열 제거 후 적용)
+        selected_objects = torch.where(
+            unique_cols == 0,
+            right_objects,  # 가장 왼쪽 열 → 오른쪽 선택
+            torch.where(
+                unique_cols == self.shelf_object_config.shape[2] - 1,
+                left_objects,  # 가장 오른쪽 열 → 왼쪽 선택
+                torch.where(random_choice == 0, left_objects, right_objects),
+            ),  # 그 외에는 랜덤 선택
+        )
+
+        # ✅ 최종 유효한 환경 마스크
+        valid_masks = both_sides_exist & valid_front_objects
+
+        # ✅ 유효한 환경 인덱스 & 물체 인덱스 추출
+        valid_envs = torch.nonzero(valid_masks, as_tuple=True)[0].squeeze(
+            -1
+        )  # 선택된 환경의 인덱스
+        valid_objects = selected_objects[
+            valid_masks
+        ]  # 해당 환경에서 선택된 물체 ID
+        # ✅ 선택된 환경의 물체 위치 가져오기
+        selected_positions = self._object_collection.data.object_pos_w[
+            valid_envs, valid_objects, :3
+        ].clone()  # clone()을 사용하여 직접 수정 가능하게 만듦
+
+        selected_positions[:, 2] = 0.7  # Z 좌표 업데이트
+
+        # ✅ `orientations` 및 `velocities` 크기 맞추기
+        num_valid = valid_envs.shape[0]  # 선택된 환경 개수
+
+        orientations = torch.empty(
+            (num_valid, 4), device=self.device
+        )  # [num_valid, 4]
+        orientations[:, :] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device)
+
+        velocities = torch.zeros(
+            (num_valid, 6), device=self.device
+        )  # [num_valid, 6]
+
+        # ✅ 차원 일치 문제 해결
+        final_object_state = torch.cat(
+            (selected_positions, orientations, velocities), dim=1
+        ).unsqueeze(
+            1
+        )  # [num_valid, 1, 13]
+
+        object_ids = valid_objects.unsqueeze(1)  # Shape: [2, 1]
+        if object_ids.numel() > 0:
+            # ✅ 🔹 시뮬레이션 업데이트 실행 🔹
+            self._object_collection.write_object_link_state_to_sim(
+                final_object_state,
+                env_ids=env_ids,
+                object_ids=object_ids[0],
+            )
+
+            mask = (
+                self.shelf_object_config == valid_objects[:, None, None]
             )  # (num_envs, num_rows, num_cols)
 
-            # ✅ 가장 위쪽 행(row) 찾기 (열 단위로)
-            col_indices = torch.where(match_mask)[2]  # 세 번째 차원이 col index
-
-            # ✅ 중복 제거하여 환경별 고유한 열만 선택
-            unique_envs, unique_indices = torch.unique(
-                torch.nonzero(match_mask, as_tuple=True)[0], return_inverse=True
-            )
-            unique_cols = col_indices[
-                unique_indices
-            ]  # 환경별 유일한 col index 가져오기
-
-            # ✅ "가장 앞쪽(세 번째 행, row_index=2)의 물체" 기준으로 찾기
-            front_row_index = 2  # 사용자 기준 "가장 앞쪽 행"의 row index
-            front_objects = self.shelf_object_config[
-                unique_envs, front_row_index, unique_cols
-            ]  # 해당 열의 가장 앞쪽 물체
-
-            # ✅ 양옆(왼쪽/오른쪽) 물체 찾기
-            left_indices = torch.clamp(unique_cols - 1, min=0)
-            right_indices = torch.clamp(
-                unique_cols + 1, max=self.shelf_object_config.shape[2] - 1
-            )
-
-            left_objects = self.shelf_object_config[
-                unique_envs, front_row_index, left_indices
-            ]
-            right_objects = self.shelf_object_config[
-                unique_envs, front_row_index, right_indices
-            ]
-
-            # ✅ 양쪽에 물체가 모두 존재하는지 확인
-            both_sides_exist = (left_objects != -1) & (right_objects != -1)
-
-            # ✅ `front_objects` 조건 추가 (front_objects가 `-1`이거나 `target_id`와 같으면 pass)
-            valid_front_objects = (front_objects != -1) & (
-                front_objects != self.target_id[unique_envs, 0]
-            )
-
-            # ✅ 랜덤 선택을 위한 마스크
-            random_choice = torch.randint(0, 2, left_objects.shape, device="cuda:0")
-
-            # ✅ 조건별 물체 선택 (중복된 열 제거 후 적용)
-            selected_objects = torch.where(
-                unique_cols == 0,
-                right_objects,  # 가장 왼쪽 열 → 오른쪽 선택
-                torch.where(
-                    unique_cols == self.shelf_object_config.shape[2] - 1,
-                    left_objects,  # 가장 오른쪽 열 → 왼쪽 선택
-                    torch.where(random_choice == 0, left_objects, right_objects),
-                ),  # 그 외에는 랜덤 선택
-            )
-
-            # ✅ 최종 유효한 환경 마스크
-            valid_masks = both_sides_exist & valid_front_objects
-
-            # ✅ 유효한 환경 인덱스 & 물체 인덱스 추출
-            valid_envs = torch.nonzero(valid_masks, as_tuple=True)[0].squeeze(
-                -1
-            )  # 선택된 환경의 인덱스
-            valid_objects = selected_objects[
-                valid_masks
-            ]  # 해당 환경에서 선택된 물체 ID
-            # ✅ 선택된 환경의 물체 위치 가져오기
-            selected_positions = self._object_collection.data.object_pos_w[
-                valid_envs, valid_objects, :3
-            ].clone()  # clone()을 사용하여 직접 수정 가능하게 만듦
-
-            selected_positions[:, 2] = 0.7  # Z 좌표 업데이트
-
-            # ✅ `orientations` 및 `velocities` 크기 맞추기
-            num_valid = valid_envs.shape[0]  # 선택된 환경 개수
-
-            orientations = torch.empty(
-                (num_valid, 4), device=self.device
-            )  # [num_valid, 4]
-            orientations[:, :] = torch.tensor([1.0, 0.0, 0.0, 0.0], device=self.device)
-
-            velocities = torch.zeros(
-                (num_valid, 6), device=self.device
-            )  # [num_valid, 6]
-
-            # ✅ 차원 일치 문제 해결
-            final_object_state = torch.cat(
-                (selected_positions, orientations, velocities), dim=1
-            ).unsqueeze(
-                1
-            )  # [num_valid, 1, 13]
-
-            object_ids = valid_objects.unsqueeze(1)  # Shape: [2, 1]
-            if object_ids.numel() > 0:
-                # ✅ 🔹 시뮬레이션 업데이트 실행 🔹
-                self._object_collection.write_object_link_state_to_sim(
-                    final_object_state,
-                    env_ids=env_ids,
-                    object_ids=object_ids[0],
-                )
-
-                mask = (
-                    self.shelf_object_config == valid_objects[:, None, None]
-                )  # (num_envs, num_rows, num_cols)
-
-                # 2. 해당 위치를 `-1`로 변경
-                self.shelf_object_config[mask] = -1
-
+            # 2. 해당 위치를 `-1`로 변경
+            self.shelf_object_config[mask] = -1
+        
+        # print(self.shelf_object_config)
+        # print(f"previous_shelf_object_config: {self.previous_shelf_object_config}")
+        # print("------------------------------------")
+        
+        
     def get_category(self, item_name):
         for category, items in self.cfg.object_category.items():
             if item_name in items:
