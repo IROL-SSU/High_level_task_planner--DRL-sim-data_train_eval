@@ -491,7 +491,6 @@ class DirectShelfEnv(DirectRLEnv):
             valid_objects = selected_objects[
                 valid_masks
             ]  # 해당 환경에서 선택된 물체 ID
-            print(valid_envs)
             # ✅ 선택된 환경의 물체 위치 가져오기
             selected_positions = self._object_collection.data.object_pos_w[
                 valid_envs, valid_objects, :3
