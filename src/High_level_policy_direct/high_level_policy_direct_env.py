@@ -174,8 +174,6 @@ class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     sweeping_again = -20.0
     sweeping_and_grasping = -20.0
     termination_penalty = -20.0
-    
-    sweeping_no_enough = -10.0
 
 
 class HighlevelDirectEnv(DirectRLEnv):
