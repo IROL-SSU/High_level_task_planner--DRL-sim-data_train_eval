@@ -5,3 +5,4 @@
 
 from . import rsl_rl_cfg
 from . import rsl_rl_cfg_vel
+from . import rsl_rl_cfg_ik

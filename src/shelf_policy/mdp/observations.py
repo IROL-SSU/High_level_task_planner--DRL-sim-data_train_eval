@@ -10,7 +10,7 @@ import torch
 from typing import TYPE_CHECKING
 
 from omni.isaac.lab.assets import RigidObject, Articulation, RigidObjectCollection
-from omni.isaac.lab.utils.math import subtract_frame_transforms, quat_unique
+from omni.isaac.lab.utils.math import subtract_frame_transforms, quat_unique, matrix_from_quat
 from omni.isaac.lab.sensors import FrameTransformerData, ContactSensorData
 from omni.isaac.lab.managers import SceneEntityCfg, ManagerTermBase
 from omni.isaac.lab.sensors import FrameTransformer
@@ -21,6 +21,31 @@ from random import choice
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
 
+
+def EE_vel_in_RRF(
+        env: ManagerBasedRLEnv,
+        robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),):
+    
+    robot: Articulation = env.scene[robot_cfg.name]
+    #ee lin vel
+    ee_lin_vel_w = robot.data.body_state_w[:,10,7:10].clone()
+    ee_quat_w = robot.data.root_quat_w[:, :4].clone()
+
+    R_wb = matrix_from_quat(ee_quat_w)
+    R_bw = R_wb.transpose(1, 2)
+
+    v_base = R_bw @ ee_lin_vel_w.unsqueeze(-1)
+
+    # print("world: ",ee_lin_vel_w)
+    # print("base: ", v_base.squeeze(-1))
+
+    return v_base.squeeze(-1)
+
+
+
+
+
+    
 
 def MA_object_position_in_RRF(
         env: ManagerBasedRLEnv,

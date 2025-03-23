@@ -166,15 +166,17 @@ class RewardsCfg:
                               params={"command_name": "target_goal_pos"}, 
                               weight=5.0)
     
-    # # sweeping_bonus = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_bonus, params={"command_name": "target_goal_pos"}, weight=7.0)
+    # sweeping_bonus = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_bonus, params={"command_name": "target_goal_pos"}, weight=7.0)
 
     homing_after_sweep = RewTerm(func=mdp.rewards_sweep_ur5e.homing_reward, params={"command_name": "target_goal_pos"}, weight=12.0)
 
-    shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.2)
+    shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.3)
 
-    object_collision = RewTerm(func=mdp.rewards_sweep_ur5e.object_collision, params={}, weight=-0.5)
+    object_collision = RewTerm(func=mdp.rewards_sweep_ur5e.object_collision, params={}, weight=-0.7)
 
-    object_flip = RewTerm(func=mdp.rewards_sweep_ur5e.object_flip, params={}, weight=-0.5)
+    # object_flip = RewTerm(func=mdp.rewards_sweep_ur5e.object_flip, params={}, weight=-0.2)
+
+    # ee_vel_penalty = RewTerm(func=mdp.rewards_sweep_ur5e.ee_vel_penalty, params={}, weight = -1e-4)
 
 
 @configclass
@@ -183,7 +185,7 @@ class TerminationsCfg:
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=True, params={"height_condition":MISSING})
-    # shelf_collision = DoneTerm(func=mdp.shelf_collision_termination, params={"threshold": 0.1})
+    shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=True, params={"threshold": 0.1})
 
 
 @configclass
@@ -195,8 +197,12 @@ class CurriculumCfg:
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 30000}
     )
+
+    # ee_vel = CurrTerm(func=mdp.modify_reward_weight, params={"term_name": "ee_vel_penalty", "weight": -4e-1, "num_steps": 10000})
+
+    # shelf_penalty = CurrTerm(func=mdp.modify_reward_weight, params={"term_name": "shelf_collision", "weight": -3e-1, "num_steps": 20000})
 
 
 ##

@@ -44,7 +44,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
                         "wrist_1_joint",
                         "wrist_2_joint",
                         "wrist_3_joint"], 
-            scale=0.5, 
+            scale=0.6, 
             use_default_offset=True
         )
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
