@@ -171,7 +171,7 @@ def pushing_target(env: ManagerBasedRLEnv,
 
     distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
     zeta_m = torch.where((torch.norm(offset_pos - ee_pos_w, dim=-1, p=2)) < 0.04 , 1, 0)
-    vel_rew = torch.where(torch.abs(target_lin_vel_w[:, 1]) < 0.03, 10 * torch.abs(target_lin_vel_w[:, 1]) , -1)
+    vel_rew = torch.where(torch.abs(target_lin_vel_w[:, 1]) < 0.02, 10 * torch.abs(target_lin_vel_w[:, 1]) , -1)
     reward = torch.where(distance < 0.03, 1.5, zeta_m *((1 - distance/0.15) + vel_rew ))
 
     # print(target_lin_vel_w[:, 1])

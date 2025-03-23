@@ -197,7 +197,7 @@ class CurriculumCfg:
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 30000}
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -2e-1, "num_steps": 30000}
     )
 
     # ee_vel = CurrTerm(func=mdp.modify_reward_weight, params={"term_name": "ee_vel_penalty", "weight": -4e-1, "num_steps": 10000})
