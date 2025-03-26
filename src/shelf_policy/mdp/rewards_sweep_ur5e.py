@@ -34,7 +34,7 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
 
     offset_pos = target_pos_w.clone()
     offset_pos[:, 0] = offset_pos[:, 0] + 0.01
-    offset_pos[:, 1] = offset_pos[:, 1] - 0.09
+    offset_pos[:, 1] = offset_pos[:, 1] - 0.07
     offset_pos[:, 2] = offset_pos[:, 2] + 0.08
 
     distance = torch.norm((offset_pos[:, :3] - ee_pos_w[..., 0,:3]), dim=-1, p=2)
@@ -166,7 +166,7 @@ def pushing_target(env: ManagerBasedRLEnv,
     ee_pos_w = ee.data.target_pos_w[..., 0, :]
     offset_pos = target_pos_w.clone()
     offset_pos[:, 0] = offset_pos[:, 0] + 0.01
-    offset_pos[:, 1] = offset_pos[:, 1] - 0.09
+    offset_pos[:, 1] = offset_pos[:, 1] - 0.07
     offset_pos[:, 2] = offset_pos[:, 2] + 0.08
 
     distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
@@ -348,7 +348,8 @@ def joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntity
     """
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
-    return torch.sum(torch.square(asset.data.joint_vel[:, :6]), dim=1)
+    vel_weight = torch.where(torch.sum(torch.square(asset.data.joint_vel[:, :6]), dim=1) < 3.5, 0.1 , 1)
+    return vel_weight * torch.sum(torch.square(asset.data.joint_vel[:, :6]), dim=1)
 
 def ee_vel_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), threshold: float = 0.1):
 

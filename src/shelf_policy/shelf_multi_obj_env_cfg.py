@@ -197,7 +197,7 @@ class CurriculumCfg:
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.15, "num_steps": 30000}
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.1, "num_steps": 30000}
     )
 
     # ee_vel = CurrTerm(func=mdp.modify_reward_weight, params={"term_name": "ee_vel_penalty", "weight": -1e-1, "num_steps": 10000})
@@ -236,7 +236,7 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
 
-        self.sim.physx.bounce_threshold_velocity = 0.2
+        self.sim.physx .bounce_threshold_velocity = 0.2
         # self.sim.physx.bounce_threshold_velocity = 0.01
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 16 * 16
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024 * 16
