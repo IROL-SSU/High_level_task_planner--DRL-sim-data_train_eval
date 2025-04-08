@@ -55,7 +55,7 @@ from PIL import Image
 @configclass
 class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     # env
-    decimation = 20 # 기존 2 / 60(확인용) / 10(학습용)
+    decimation = 10 # 기존 2 / 60(확인용) / 10(학습용)
     episode_length_s = 4.0 # 기존 5.0
     action_space = [{3}, {4}]
     observation_space = 15
@@ -766,10 +766,10 @@ class HighlevelDirectEnv(DirectRLEnv):
         num_envs, num_rows, num_cols = self.previous_shelf_object_config.shape  # (num_envs, 3, 4)
         env_indices = torch.arange(num_envs, device=self.device)
         
-        print(f"previous_shelf_column_distribution: {self.previous_column_distribution}")
-        print(f"previous_shelf_object_config: {self.previous_shelf_object_config}")
-        print(f"pol: {pol}")
-        print(f"col: {col}")
+        # print(f"previous_shelf_column_distribution: {self.previous_column_distribution}")
+        # print(f"previous_shelf_object_config: {self.previous_shelf_object_config}")
+        # print(f"pol: {pol}")
+        # print(f"col: {col}")
         
         ## sweeping right termination
         # 조건 1: col이 3이면 터미네이션 (workspace 밖으로 나감)
@@ -976,8 +976,8 @@ class HighlevelDirectEnv(DirectRLEnv):
         self.target_id[env_ids, 0] = target_object_id
 
         target_object_name = self.cfg.object_id_dict_rev[str(target_object_id)]
-        print("-------------------new episode-------------------")
-        print(f"Target object name: {target_object_name}")
+        # print("-------------------new episode-------------------")
+        # print(f"Target object name: {target_object_name}")
         # print(f"Target object id: {target_object_id}")
 
         target_category = self.get_category(target_object_name)
