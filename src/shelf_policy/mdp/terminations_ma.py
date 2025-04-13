@@ -4,7 +4,7 @@ from dataclasses import MISSING
 import torch
 from typing import TYPE_CHECKING
 
-from omni.isaac.lab.assets import RigidObject, RigidObjectCollection
+from omni.isaac.lab.assets import RigidObject, RigidObjectCollection, Articulation
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.utils.math import combine_frame_transforms, transform_points, euler_xyz_from_quat
 from omni.isaac.lab.managers import SceneEntityCfg, ManagerTermBase
@@ -16,12 +16,50 @@ from src_utils.shelf_utils import normalize_angle
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
 
-def drop_object_termination(env: ManagerBasedRLEnv,
-                            object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
-                            height_condition: float = MISSING,
-                            rotation_condition: float = MISSING):
+def success_sweeping(env: ManagerBasedRLEnv,
+                     object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
+                     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+                     command_name: str = "target_goal_pos",
+                     sweeping_threshold: float = 0.02,
+                     homing_threshold: float = 0.5):
+    
+    robot: Articulation = env.scene[asset_cfg.name]
 
     object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+    command = env.command_manager.get_command(command_name)
+
+    # obtain the desired and current positions
+    des_pos_w = command[:, :3]
+
+    # Get the target IDs directly from the environment tensor
+    target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs, )
+
+    # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+    target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids]
+
+    # joint_pos_error = torch.sum(torch.abs(robot.data.joint_pos[:, : 6] - robot.data.default_joint_pos[:, :6]), dim=1)
+    
+    distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
+
+    # print(joint_pos_error)
+
+    # success = (distance < sweeping_threshold) & (joint_pos_error < homing_threshold)
+
+    # print((joint_pos_error < homing_threshold))
+    # print(success)
+
+    return (distance < sweeping_threshold)
+
+
+def drop_object_termination(env: ManagerBasedRLEnv,
+                            object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
+                            params: float = -1.0,
+                            height_condition: float = MISSING,
+                            rotation_condition: float = MISSING,
+                            ):
+
+    object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+    target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
 
     objects_pose = object_collection.data.object_link_state_w  # (N, num_objects, 13)
 
@@ -46,6 +84,11 @@ def drop_object_termination(env: ManagerBasedRLEnv,
     roll = normalize_angle(roll)
     pitch = normalize_angle(pitch)
 
+    # if params < 0:
+    #     roll[torch.arange(env.scene.num_envs), target_ids] = 0.0
+    #     pitch[torch.arange(env.scene.num_envs), target_ids] = 0.0
+
+    
     # ✅ 물체가 넘어졌는지 확인 (roll, pitch가 특정 값 이상이면 뒤집힌 것으로 간주)
     is_flipped = (torch.abs(roll) > rotation_condition) | (torch.abs(pitch) > rotation_condition)
 

@@ -11,3 +11,4 @@ import high_level_policy
 # import High_level_policy.config.move
 import High_level_policy_direct
 import high_level_policy
+import shelf_direct_policy

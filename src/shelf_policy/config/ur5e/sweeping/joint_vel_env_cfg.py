@@ -23,7 +23,7 @@ import os
 ##
 
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
-from shelf_policy.asset.ur5e import UR5e_CFG
+from shelf_policy.asset.ur5e_v2 import UR5e_CFG
 from src_utils.shelf_utils import load_yaml_config, load_and_reshape_pose
 
 @configclass
@@ -44,15 +44,35 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
                         "wrist_1_joint",
                         "wrist_2_joint",
                         "wrist_3_joint"], 
-            scale=1.0, 
+            scale=0.5, 
             use_default_offset=True
         )
-        self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
+        self.actions.gripper_action = mdp.BinaryJointVelocityActionCfg(
             asset_name="robot",
-            joint_names=["left_outer_knuckle_joint", "right_outer_knuckle_joint"],
-            open_command_expr={"left_outer_knuckle_joint": 0.0, "right_outer_knuckle_joint": 0.0},
-            close_command_expr={"left_outer_knuckle_joint": 0.5, "right_outer_knuckle_joint": 0.5},
-        )
+            joint_names=["finger_joint",
+                         "right_outer_knuckle_joint",
+                         "left_outer_finger_joint",
+                         "left_inner_finger_knuckle_joint",
+                         "left_inner_finger_joint",  
+                         "right_outer_finger_joint", 
+                         "right_inner_finger_joint", 
+                         "right_inner_finger_knuckle_joint"],
+            open_command_expr={"finger_joint": -0.5, 
+                                "right_outer_knuckle_joint": -0.5,
+                                "left_inner_finger_knuckle_joint": 0.5,
+                                "left_inner_finger_joint": 0.5, 
+                                "left_outer_finger_joint": 0.0,
+                                "right_outer_finger_joint": 0.0,
+                                "right_inner_finger_joint": -0.5,
+                                "right_inner_finger_knuckle_joint": 0.5},
+            close_command_expr={"finger_joint": 0.5, 
+                                "right_outer_knuckle_joint": 0.5,
+                                "left_inner_finger_knuckle_joint": -0.5,
+                                "left_inner_finger_joint": -0.5, 
+                                "left_outer_finger_joint": 0.0,
+                                "right_outer_finger_joint": 0.0,
+                                "right_inner_finger_joint": 0.5,
+                                "right_inner_finger_knuckle_joint": -0.5},)
 
 
         # YAML 파일 로드
@@ -104,10 +124,10 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_base_link",
                     name="end_effector",
                     offset=OffsetCfg(
-                        pos=[0.0, 0.0, 0.14],
+                        pos=[0.13, 0.0, 0.0],
                     ),
                 ),
             ],
@@ -119,17 +139,17 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_base_link",
                     name="l_finger",
                     offset=OffsetCfg(
-                        pos=(0.0, -0.07, 0.11),
+                        pos=(0.13, 0.07, 0.0),
                     ),
                 ),
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_base_link",
                     name="r_finger",
                     offset=OffsetCfg(
-                        pos=(0.0, 0.07, 0.11),
+                        pos=(0.13, -0.07, 0.0),
                     ),
                 ),
             ],
@@ -141,10 +161,10 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             visualizer_cfg=marker_cfg,
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_arg2f_base_link_01",
+                    prim_path="{ENV_REGEX_NS}/Robot/robotiq_base_link",
                     name="wrist",
                     offset=OffsetCfg(
-                        pos=(0.0, 0.0, -0.14),
+                        pos=(-0.14, 0.0, 0.0),
                     ),
                 ),
             ],
@@ -171,7 +191,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
 
         self.rewards.reaching.params["object_id_dict_rev"] = object_id_dict_rev
 
-        self.terminations.object_drop.params["height_condition"] = 0.99
+        self.terminations.object_drop.params["height_condition"] = 1.04
         self.terminations.object_drop.params["rotation_condition"] = 0.9
 
         

@@ -13,7 +13,7 @@ from . import joint_pos_env_cfg
 # Pre-defined configs
 ##
 
-from shelf_policy.asset.ur5e import UR5e_CFG
+from shelf_policy.asset.ur5e_v2 import UR5e_CFG, UR5e_HIGH_PD_CFG
 
 
 @configclass
@@ -23,7 +23,7 @@ class UR5eShelfEnvCfg(joint_pos_env_cfg.UR5eShelfEnvCfg):
         super().__post_init__()
 
         # Set the robot config
-        self.scene.robot = UR5e_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = UR5e_HIGH_PD_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # Set actions for the specific robot type (UR5e)
         self.actions.arm_action = DifferentialInverseKinematicsActionCfg(
@@ -33,12 +33,15 @@ class UR5eShelfEnvCfg(joint_pos_env_cfg.UR5eShelfEnvCfg):
                         "elbow_joint",
                         "wrist_1_joint",
                         "wrist_2_joint",
-                        "wrist_3_joint",], 
+                        "wrist_3_joint"], 
             body_name="flange",
             controller=DifferentialIKControllerCfg(command_type="pose", use_relative_mode=False, ik_method="dls"),
             body_offset=DifferentialInverseKinematicsActionCfg.OffsetCfg(pos=[0.0, 0.0, 0.14]),
             scale=1.0
         )
+
+        
+
 
 
 @configclass

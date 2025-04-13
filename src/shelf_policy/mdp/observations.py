@@ -22,6 +22,10 @@ if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
 
 
+
+
+
+
 def EE_vel_in_RRF(
         env: ManagerBasedRLEnv,
         robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),):
@@ -44,7 +48,24 @@ def EE_vel_in_RRF(
 
 
 
+def MA_joint_pos_rel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """The joint positions of the asset w.r.t. the default joint positions.
 
+    Note: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their positions returned.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    return asset.data.joint_pos[:, :8] - asset.data.default_joint_pos[:, :8]
+
+
+def MA_joint_vel_rel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")):
+    """The joint velocities of the asset w.r.t. the default joint velocities.
+
+    Note: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their velocities returned.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    return asset.data.joint_vel[:, :8] - asset.data.default_joint_vel[:, :8]
     
 
 def MA_object_position_in_RRF(

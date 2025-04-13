@@ -44,7 +44,6 @@ def randomize_scene(
     elif task_mode == "sweeping_right":
         target_object_name = choice(list(asset_dict.keys()))
 
-    # print(target_object_name)
 
     target_object_id = object_collection.find_objects(name_keys=target_object_name)
 

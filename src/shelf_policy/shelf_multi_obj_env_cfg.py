@@ -111,8 +111,8 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_pos = ObsTerm(func=mdp.MA_joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel = ObsTerm(func=mdp.MA_joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
         target_obs_state = ObsTerm(func=mdp.MA_object_position_in_RRF, params={"object_id_dict_rev": MISSING}, noise = Unoise(n_min=-0.01, n_max=0.01))
         ee_pos = ObsTerm(func=mdp.ee_pos_r)
@@ -143,11 +143,16 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # action penalty
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
     joint_vel = RewTerm(
         func=mdp.rewards_sweep_ur5e.joint_vel_l2,
-        weight=-1e-4,
+        weight=-0.1,
         params={"asset_cfg": SceneEntityCfg("robot")},
+    )
+    soft_joint_vel = RewTerm(
+        func=mdp.rewards_sweep_ur5e.joint_vel_limits,
+        weight=-1e-4,
+        params={"soft_ratio": 0.2}
     )
 
     reaching = RewTerm(
@@ -155,6 +160,7 @@ class RewardsCfg:
         weight=3.0,
         params={"object_id_dict_rev": MISSING}
     )
+
 
     orientation = RewTerm(
         func=mdp.rewards_sweep_ur5e.ee_Align,
@@ -164,15 +170,15 @@ class RewardsCfg:
 
     sweeping_object = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_target, 
                               params={"command_name": "target_goal_pos"}, 
-                              weight=5.0)
+                              weight=6.0)
     
-    # sweeping_bonus = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_bonus, params={"command_name": "target_goal_pos"}, weight=7.0)
+    # sweeping_bonus = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_bonus, params={"command_name": "target_goal_pos"}, weight=3.0)
 
     homing_after_sweep = RewTerm(func=mdp.rewards_sweep_ur5e.homing_reward, params={"command_name": "target_goal_pos"}, weight=12.0)
 
-    shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.3)
+    shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.4)
 
-    object_collision = RewTerm(func=mdp.rewards_sweep_ur5e.object_collision, params={}, weight=-0.7)
+    object_collision = RewTerm(func=mdp.rewards_sweep_ur5e.object_collision, params={}, weight=-1.0)
 
     # object_flip = RewTerm(func=mdp.rewards_sweep_ur5e.object_flip, params={}, weight=-0.2)
 
@@ -184,25 +190,24 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-    object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=True, params={"height_condition":MISSING})
-    shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=True, params={"threshold": 0.1})
+    object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING})
+    shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=False, params={"threshold": 0.1})
+    # success_sweep = DoneTerm(func=mdp.success_sweeping, time_out=False, params= {"command_name": "target_goal_pos", "sweeping_threshold": 0.02, "homing_threshold": 0.6})
 
 
 @configclass
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
+    
+    # sweeping = CurrTerm(func=mdp.modify_reward_weight, params={"term_name": "sweeping_object", "weight": 6.0, "num_steps": 10000})
+    # action_rate = CurrTerm(
+    #     func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.1, "num_steps": 10000}
+    # )
 
-    action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-1, "num_steps": 10000}
-    )
+    # joint_vel = CurrTerm(
+    #     func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.1, "num_steps": 10000}
+    # )
 
-    joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.1, "num_steps": 30000}
-    )
-
-    # ee_vel = CurrTerm(func=mdp.modify_reward_weight, params={"term_name": "ee_vel_penalty", "weight": -1e-1, "num_steps": 10000})
-
-    # shelf_penalty = CurrTerm(func=mdp.modify_reward_weight, params={"term_name": "shelf_collision", "weight": -3e-1, "num_steps": 20000})
 
 
 ##
@@ -231,13 +236,14 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.decimation = 2
-        self.episode_length_s = 3.0
+        self.episode_length_s = 10.0
 
         # simulation settings
-        self.sim.dt = 0.01  # 100Hz
+        self.sim.dt = 1 / 60  # 100Hz
 
         self.sim.physx .bounce_threshold_velocity = 0.2
         # self.sim.physx.bounce_threshold_velocity = 0.01
+
         self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 16 * 16
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024 * 16
         self.sim.physx.friction_correlation_distance = 0.00625

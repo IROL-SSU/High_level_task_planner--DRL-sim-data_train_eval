@@ -25,5 +25,8 @@ def ee_pose_b(env: ManagerBasedRLEnv) -> torch.Tensor:
     ee_pos_b, ee_quat_b = subtract_frame_transforms(
         robot.data.root_state_w[:, :3], robot.data.root_state_w[:, 3:7], ee_pos_w, ee_quat_w
     )
+
+    # print(f"position: {ee_pos_b}")
+    # print(f"orientation: {ee_quat_b}")
     # print(f"robot_joint_vel: {robot.data.joint_vel}")
     return  torch.concat((ee_pos_b, ee_quat_b), dim=1)

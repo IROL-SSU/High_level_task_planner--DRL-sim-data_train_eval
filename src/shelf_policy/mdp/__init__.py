@@ -16,3 +16,4 @@ from .rewards_grasp import *
 from .rewards_sweep_ur5e import *
 from .commands import *
 from .events import *
+from .curriculums import *
