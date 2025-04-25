@@ -220,8 +220,8 @@ class HighlevelDirectEnv(DirectRLEnv):
                 super(FCNModel, self).__init__()
                 # weights=None로 설정하여 pretrained 모델 사용하지 않음
                 self.model = fcn_resnet50(weights=None)
-                # 분류기 마지막 레이어를 원하는 클래스 수로 변경 (여기서는 예시로 12 클래스 사용)
-                self.model.classifier[4] = nn.Conv2d(512, 12, kernel_size=1)
+                # 분류기 마지막 레이어를 원하는 클래스 수로 변경 (여기서는 예시로 16 클래스 사용)
+                self.model.classifier[4] = nn.Conv2d(512, 16, kernel_size=1)
 
             def forward(self, x):
                 return self.model(x)['out']
