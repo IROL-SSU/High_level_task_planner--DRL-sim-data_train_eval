@@ -260,7 +260,7 @@ class HighlevelDirectEnv(DirectRLEnv):
         # random_policy = torch.full((self.num_envs, ), 0, device=self.device)
         # random_policy = torch.randint(0, 3, (self.num_envs,), device='cuda:0')
         # self.actions[:, 0] = random_policy
-        # random_ids = torch.randint(0, 4, (self.num_envs,), device='cuda:0')
+        # random_ids = torch.randint(0, 5, (self.num_envs,), device='cuda:0')
         # self.actions[:, 1] = random_ids
         
         policy = self.actions[:, 0]
@@ -270,7 +270,7 @@ class HighlevelDirectEnv(DirectRLEnv):
         
         policy = torch.clamp(policy, min=0, max=2)
         # print(f"Policy: {policy}")
-        item_idx = torch.clamp(item_idx, min=0, max=3)
+        item_idx = torch.clamp(item_idx, min=0, max=4)
         # print(f"Item idx: {item_idx}")
         
         self.action_policy = policy.unsqueeze(-1).clone()
@@ -279,7 +279,7 @@ class HighlevelDirectEnv(DirectRLEnv):
         # print(f"Previous action column: {self.action_column}")
         processed_position = self.action_commands[policy]
         
-        env_indices = torch.arange(self.num_envs, device=self.device)  # 각 환경에서 shelf_front_object (shape: (num_envs, 4))의 item_idx에 해당하는 object id를 선택
+        env_indices = torch.arange(self.num_envs, device=self.device)  # 각 환경에서 shelf_front_object (shape: (num_envs, 5))의 item_idx에 해당하는 object id를 선택
         selected_object_ids = self.shelf_front_object[env_indices, item_idx.long()] # selected_object_ids: (num_envs,) – 각 env에서 선택된 column의 object id
         # print(f"shelf_front_object: {self.shelf_front_object}")
         # print(f"Selected object ids: {selected_object_ids}")
@@ -289,14 +289,14 @@ class HighlevelDirectEnv(DirectRLEnv):
         all_obj_state = self._object_collection.data.object_state_w.clone()
 
         # 전체 환경에 대해 업데이트할 state를 담을 텐서를 생성 (shape: [num_envs, state_dim])
-        # 여기서는 state_dim이 7이라고 가정합니다.
+        # 여기서는 state_dim이 7이라고 가정함
         update_state = torch.zeros(self.num_envs, all_obj_state.size(-1), device=self.device)
 
-        # valid한 환경과 invalid한 환경의 인덱스를 구합니다.
+        # valid한 환경과 invalid한 환경의 인덱스를 구함
         valid_indices = torch.nonzero(valid_mask, as_tuple=False).squeeze(-1)
         invalid_indices = torch.nonzero(~valid_mask, as_tuple=False).squeeze(-1)
 
-        # valid 환경: 선택된 object id에 해당하는 state를 가져와 이동 벡터(processed_position)를 더합니다.
+        # valid 환경: 선택된 object id에 해당하는 state를 가져와 이동 벡터(processed_position)를 더함
         if valid_indices.numel() > 0:
             valid_obj_ids = selected_object_ids[valid_indices].long()  # shape: [n_valid]
             # all_obj_state[env, obj, :] 선택 -> shape: [n_valid, state_dim]
@@ -307,14 +307,14 @@ class HighlevelDirectEnv(DirectRLEnv):
         # invalid 환경: object id가 -1인 경우에는 dummy 업데이트 (여기서는 0번 object state를 사용)
         if invalid_indices.numel() > 0:
             update_state[invalid_indices] = all_obj_state[invalid_indices, 0, :].clone()
-            # 변화가 없도록 processed_position은 더하지 않습니다.
+            # 변화가 없도록 processed_position은 더하지 않음
 
         # 전체 환경에 대해 full_object_ids: 유효하지 않은 환경은 dummy로 0번 object id 사용
         full_object_ids = selected_object_ids.clone().unsqueeze(-1)  # shape: [num_envs, 1]
         if invalid_indices.numel() > 0:
             full_object_ids[invalid_indices] = 0  # dummy object id
 
-        # 최종적으로, 업데이트된 update_state를 [num_envs, 1, state_dim]으로 만들어 업데이트합니다.
+        # 최종적으로, 업데이트된 update_state를 [num_envs, 1, state_dim]으로 만들어 업데이트함
         self._object_collection.write_object_state_to_sim(
             object_state=update_state.unsqueeze(1),  # [num_envs, 1, state_dim]
             object_ids=full_object_ids                # [num_envs, 1]
@@ -530,7 +530,7 @@ class HighlevelDirectEnv(DirectRLEnv):
         
         
         ## sweeping right reward
-        # 1. 조건 1: 이전 action이 sweeping right (policy==1)이고, 이전 column이 3이 아닌 경우
+        # 1. 조건 1: 이전 action이 sweeping right (policy==1)이고, 이전 column이 4가 아닌 경우
         swr_cond1 = (pol == 1) & (col != 4)
         
         # 2. 조건 2: 이전 column 분포에서 최대값
@@ -773,10 +773,10 @@ class HighlevelDirectEnv(DirectRLEnv):
         print(f"col: {col}")
         
         ## sweeping right termination
-        # 조건 1: col이 3이면 터미네이션 (workspace 밖으로 나감)
+        # 조건 1: col이 4이면 터미네이션 (workspace 밖으로 나감)
         term_spr_cond1 = (pol == 1) & (col == 4)
 
-        # 조건 2: policy가 sweeping right이고, col이 3 미만인 경우
+        # 조건 2: policy가 sweeping right이고, col이 4 미만인 경우
         valid_t = (pol == 1) & (col < 4)
         # 안전하게 오른쪽 셀을 선택하기 위해 valid인 경우에만 col+1, 그렇지 않으면 0번 인덱스를 사용
         safe_index_t = torch.where(valid_t, col + 1, torch.zeros_like(col))
