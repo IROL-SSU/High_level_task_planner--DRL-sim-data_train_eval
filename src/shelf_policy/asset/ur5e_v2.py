@@ -49,6 +49,23 @@ UR5e_CFG = ArticulationCfg(
             "left_inner_finger_joint":0.0,
 
         },
+        joint_vel={
+            "shoulder_pan_joint": 0.0,  # -1.7540559 / -1.6
+            "shoulder_lift_joint": 0.0,  # -1.27409 / -1.9
+            "elbow_joint": 0.0,  # 1.3439 / 1.9
+            "wrist_1_joint": 0.0,  # 0.0
+            "wrist_2_joint": 0.0,  # 1.5708 / 1.57
+            "wrist_3_joint": 0.0,  # 1.5708 / 2.1
+            "finger_joint": 0.0,  # 0.0
+            "right_outer_knuckle_joint": 0.0,  # 0.0
+            "right_outer_finger_joint": 0.0,
+            "right_inner_finger_joint":0.0,
+            "right_inner_finger_knuckle_joint":0.0,
+            "left_outer_finger_joint":0.0,
+            "left_inner_finger_knuckle_joint":0.0,
+            "left_inner_finger_joint":0.0,
+
+        },
     ),
     actuators={
         "arm": ImplicitActuatorCfg(
@@ -61,12 +78,12 @@ UR5e_CFG = ArticulationCfg(
                 "wrist_3_joint",
             ],
             velocity_limit={
-                "shoulder_pan_joint": 3.14, #3.14
-                "shoulder_lift_joint": 3.14, #3.14
-                "elbow_joint": 3.14, #3.14
-                "wrist_1_joint": 6.28, #6.28
-                "wrist_2_joint": 6.28, #6.28
-                "wrist_3_joint": 6.28, #6.28
+                "shoulder_pan_joint": 3.14,
+                "shoulder_lift_joint":3.14,
+                "elbow_joint": 3.14,
+                "wrist_1_joint":6.28,
+                "wrist_2_joint":6.28,
+                "wrist_3_joint":6.28,
             },
             effort_limit=87.0,
             stiffness=261,
@@ -75,7 +92,7 @@ UR5e_CFG = ArticulationCfg(
         "gripper": ImplicitActuatorCfg(
             joint_names_expr=["finger_joint","left_outer_finger_joint","left_inner_finger_knuckle_joint","left_inner_finger_joint", "right_outer_knuckle_joint", "right_outer_finger_joint", "right_inner_finger_joint", "right_inner_finger_knuckle_joint"],
             effort_limit=200.0,
-            velocity_limit=0.5,
+            velocity_limit=2.0,
             stiffness=2000,
             damping=1000,
         ),

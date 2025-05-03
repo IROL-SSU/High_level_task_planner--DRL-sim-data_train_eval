@@ -33,5 +33,4 @@ def modify_termination_condition(env: ManagerBasedRLEnv, env_ids: Sequence[int],
         term_cfg = env.termination_manager.get_term_cfg(term_name)
         # update term settings
         term_cfg.params[param_name] = params
-        env.reward_manager.set_term_cfg(term_name, term_cfg)
         env.termination_manager.set_term_cfg(term_name, term_cfg)

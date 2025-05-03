@@ -58,6 +58,7 @@ class ReachSceneCfg(InteractiveSceneCfg):
     # end-effector sensor: will be populated by agent env cfg
     ee_frame: FrameTransformerCfg = MISSING
 
+
     
 
 
@@ -75,9 +76,9 @@ class CommandsCfg:
         resampling_time_range=(4.0, 4.0),
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.1, 0.35),
+            pos_x=(0.3, 0.5),
             pos_y=(-0.2, 0.2),
-            pos_z=(0.15, 0.4),
+            pos_z=(0.3, 0.5),
             roll=(0.0, 0.0),
             pitch=MISSING,  # depends on end-effector axis
             yaw=(-3.14, 3.14),
@@ -177,7 +178,7 @@ class ReachEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.decimation = 1
-        self.episode_length_s = 8.0
+        self.episode_length_s = 5.0
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
 

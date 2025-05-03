@@ -131,18 +131,18 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # task terms
-    reaching_object = RewTerm(func=mdp.rewards_grasp.reaching_rew, params={}, weight=2.0)
-    align_ee = RewTerm(func=mdp.rewards_grasp.align_ee_target, params={}, weight=2.0)
-    grasp_object = RewTerm(func=mdp.rewards_grasp.grasp_handle, weight=7.0,
-        params={
-            "threshold": 0.03,
-            "open_joint_pos": MISSING,
-            "asset_cfg": SceneEntityCfg("robot", joint_names=MISSING),
-        },
-    )
-    # lifting_object = RewTerm(func=mdp.rewards_grasp.object_lift, params={"threshold": 1.05}, weight=10.0)
-    homing_after_grasp = RewTerm(func=mdp.rewards_grasp.homing_reward, 
-                                 params={"gripper_cfg": SceneEntityCfg("robot", joint_names=MISSING)}, weight=10.0)
+    # reaching_object = RewTerm(func=mdp.rewards_grasp.reaching_rew, params={}, weight=2.0)
+    # align_ee = RewTerm(func=mdp.rewards_grasp.align_ee_target, params={}, weight=2.0)
+    # grasp_object = RewTerm(func=mdp.rewards_grasp.grasp_handle, weight=7.0,
+    #     params={
+    #         "threshold": 0.03,
+    #         "open_joint_pos": MISSING,
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=MISSING),
+    #     },
+    # )
+    # # lifting_object = RewTerm(func=mdp.rewards_grasp.object_lift, params={"threshold": 1.05}, weight=10.0)
+    # homing_after_grasp = RewTerm(func=mdp.rewards_grasp.homing_reward, 
+    #                              params={"gripper_cfg": SceneEntityCfg("robot", joint_names=MISSING)}, weight=10.0)
     
     # action penalty
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
@@ -154,7 +154,7 @@ class RewardsCfg:
     
     # collision penalty
     # shelf_collision = RewTerm(func=mdp.rewards_grasp.shelf_Collision, params={}, weight=-0.2)
-    object_drop = RewTerm(func=mdp.rewards_grasp.Object_drop, weight=-0.2)
+    # object_drop = RewTerm(func=mdp.rewards_grasp.Object_drop, weight=-0.2)
 
 
 @configclass

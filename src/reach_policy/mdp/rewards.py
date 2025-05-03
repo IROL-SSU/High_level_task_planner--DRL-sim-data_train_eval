@@ -38,6 +38,8 @@ def reaching_rew(env: ManagerBasedRLEnv,
     # print(f"des_pos_b: {des_pos_b}")
     # print(f"des_pos_w: {des_pos_w}")
 
+    # print(command[:, :])
+
     distance = torch.norm((des_pos_w - ee_pos_w), dim=-1, p=2)
     reward = torch.exp(-1.2 * distance)
 

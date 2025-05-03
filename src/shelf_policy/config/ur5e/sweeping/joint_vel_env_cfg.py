@@ -36,6 +36,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         self.scene.robot = UR5e_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # Set actions for the specific robot type (franka)
+        # Set actions for the specific robot type
         self.actions.arm_action = mdp.JointVelocityActionCfg(
             asset_name="robot", 
             joint_names=["shoulder_pan_joint",
@@ -44,35 +45,20 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
                         "wrist_1_joint",
                         "wrist_2_joint",
                         "wrist_3_joint"], 
-            scale=0.5, 
+            scale=1.0,
             use_default_offset=True
         )
         self.actions.gripper_action = mdp.BinaryJointVelocityActionCfg(
             asset_name="robot",
             joint_names=["finger_joint",
-                         "right_outer_knuckle_joint",
-                         "left_outer_finger_joint",
-                         "left_inner_finger_knuckle_joint",
-                         "left_inner_finger_joint",  
-                         "right_outer_finger_joint", 
-                         "right_inner_finger_joint", 
-                         "right_inner_finger_knuckle_joint"],
+                         "right_outer_knuckle_joint",],
             open_command_expr={"finger_joint": -0.5, 
-                                "right_outer_knuckle_joint": -0.5,
-                                "left_inner_finger_knuckle_joint": 0.5,
-                                "left_inner_finger_joint": 0.5, 
-                                "left_outer_finger_joint": 0.0,
-                                "right_outer_finger_joint": 0.0,
-                                "right_inner_finger_joint": -0.5,
-                                "right_inner_finger_knuckle_joint": 0.5},
+                               "right_outer_knuckle_joint": -0.5,
+},
             close_command_expr={"finger_joint": 0.5, 
                                 "right_outer_knuckle_joint": 0.5,
-                                "left_inner_finger_knuckle_joint": -0.5,
-                                "left_inner_finger_joint": -0.5, 
-                                "left_outer_finger_joint": 0.0,
-                                "right_outer_finger_joint": 0.0,
-                                "right_inner_finger_joint": 0.5,
-                                "right_inner_finger_knuckle_joint": -0.5},)
+},
+        )
 
 
         # YAML 파일 로드

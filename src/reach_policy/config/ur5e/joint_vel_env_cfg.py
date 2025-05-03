@@ -23,18 +23,18 @@ import math
 # Pre-defined configs
 ##
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
-from reach_policy.asset.ur3 import UR3_CFG
+from shelf_policy.asset.ur5e_v2 import UR5e_CFG
 
 
 @configclass
-class UR3ReachEnvCfg(ReachEnvCfg):
+class UR5eReachEnvCfg(ReachEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()
-        self.scene.robot = UR3_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = UR5e_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
        
         # Set actions for the specific robot type
-        self.actions.arm_action = mdp.JointPositionActionCfg(
+        self.actions.arm_action = mdp.JointVelocityActionCfg(
             asset_name="robot", 
             joint_names=["shoulder_pan_joint",
                         "shoulder_lift_joint",
@@ -42,9 +42,22 @@ class UR3ReachEnvCfg(ReachEnvCfg):
                         "wrist_1_joint",
                         "wrist_2_joint",
                         "wrist_3_joint"], 
-            scale=0.5, 
+            scale=1.0,
             use_default_offset=True
         )
+        self.actions.gripper_action = mdp.BinaryJointVelocityActionCfg(
+            asset_name="robot",
+            joint_names=["finger_joint",
+                         "right_outer_knuckle_joint",],
+            open_command_expr={"finger_joint": -0.5, 
+                               "right_outer_knuckle_joint": -0.5,
+},
+            close_command_expr={"finger_joint": 0.5, 
+                                "right_outer_knuckle_joint": 0.5,
+},
+        )
+        
+
         
         # Listens to the required transforms
         marker_cfg = FRAME_MARKER_CFG.copy()
@@ -63,29 +76,15 @@ class UR3ReachEnvCfg(ReachEnvCfg):
             ],
         )
 
-        self.scene.base = FrameTransformerCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/base_link",
-            debug_vis=True,
-            visualizer_cfg=marker_cfg,
-            target_frames=[
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/base_link",
-                    name="base",
-                    offset=OffsetCfg(pos=(0.0, 0.0, 0.0),),
-                ),
-            ],
-        )
-        
         self.rewards.align_ee.params["asset_cfg"].body_names = ["tool0"]
-
+        
         self.commands.ee_pose.body_name = "tool0"
         self.commands.ee_pose.ranges.pitch = (math.pi / 2, math.pi / 2)
-
         
         
 
 @configclass
-class UR3ReachEnvCfg_PLAY(UR3ReachEnvCfg):
+class UR5eReachEnvCfg_PLAY(UR5eReachEnvCfg):
     def __post_init__(self):
         # post init of parent
         super().__post_init__()

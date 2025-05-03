@@ -104,11 +104,30 @@ def shelf_collision_termination(env: ManagerBasedRLEnv,
                                 threshold: float = MISSING):
     
     shelf: RigidObject = env.scene[shelf_cfg.name]
+    # shelf_contact: ContactSensor = env.scene[shelf_contact_cfg.name]
 
+
+    # print(contact_sensor.data.net_forces_w)
     shelf_vel = shelf.data.root_vel_w
     shelf_vel.sum()
 
-    return torch.norm(shelf_vel , dim=-1, p=2)> threshold
+    termination = (torch.norm(shelf_vel , dim=-1, p=2)> threshold) 
+    
+
+    # print(shelf_contact.data.net_forces_w[:,0, 2])
+    return termination
+
+def hand_velocity_termination(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), threshold: float = 0.1):
+    robot: Articulation = env.scene[asset_cfg.name]
+
+    #ee lin vel
+    ee_lin_vel_w = robot.data.body_state_w[:,10,7:10].clone()
+    ee_ang_vel_w = robot.data.body_state_w[:, 10, 10:13].clone()
+    termination = (torch.norm(ee_lin_vel_w, dim=-1, p=2) > threshold) |  (torch.norm(ee_ang_vel_w, dim=-1, p=2) > 2.5)
+
+    
+
+    return termination
 
 
 

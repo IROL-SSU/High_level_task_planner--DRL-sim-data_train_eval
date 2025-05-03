@@ -135,12 +135,33 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # action penalty
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
     joint_vel = RewTerm(
         func=mdp.rewards_sweep_ur5e.joint_vel_l2,
-        weight=-1e-4,
+        weight=-0.1,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
+    soft_joint_vel = RewTerm(
+        func=mdp.rewards_sweep_ur5e.joint_vel_limits,
+        weight=-1e-4,
+        params={"soft_ratio": 0.2}
+    )
+    reaching = RewTerm(
+        func=mdp.rewards_grasp.reward_for_hand_reaching,
+        weight=3.0,
+        params={}
+    )
+    align_ee = RewTerm(func=mdp.rewards_grasp.align_ee_target, params={}, weight=2.0)
+    grasp_object = RewTerm(func=mdp.rewards_grasp.object_lift, weight=7.0,
+        params={
+            "threshold": 1.13 
+        },
+    )
+
+    shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.4)
+    # lifting_object = RewTerm(func=mdp.rewards_grasp.object_lift, params={"threshold": 1.05}, weight=10.0)
+    # homing_after_grasp = RewTerm(func=mdp.rewards_grasp.homing_reward, 
+    #                              params={"gripper_cfg": SceneEntityCfg("robot", joint_names=MISSING)}, weight=10.0)
 
 
 @configclass
@@ -149,20 +170,20 @@ class TerminationsCfg:
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING, "rotation_condition": MISSING})
-    shelf_collision = DoneTerm(func=mdp.shelf_collision_termination, time_out=False, params={"threshold": 0.02})
+    shelf_collision = DoneTerm(func=mdp.shelf_collision_termination, time_out=False, params={"threshold": 0.1})
 
 
 @configclass
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
+    pass
+    # action_rate = CurrTerm(
+    #     func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-1, "num_steps": 10000}
+    # )
 
-    action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -1e-1, "num_steps": 10000}
-    )
-
-    joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
-    )
+    # joint_vel = CurrTerm(
+    #     func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -1e-1, "num_steps": 10000}
+    # )
 
 
 ##
@@ -191,14 +212,14 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.decimation = 2
-        self.episode_length_s = 4.0
+        self.episode_length_s = 10.0
 
         # simulation settings
-        self.sim.dt = 0.01  # 100Hz
+        self.sim.dt = 1/60  # 100Hz
 
         self.sim.physx.bounce_threshold_velocity = 0.2
         # self.sim.physx.bounce_threshold_velocity = 0.01
-        self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 16 * 16
+        self.sim.physx.gpu_found_lost_aggregate_pairs_capacity = 1024 * 1024 * 16 * 20
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024 * 16
         self.sim.physx.friction_correlation_distance = 0.00625
         self.sim.physx.gpu_max_rigid_patch_count = 5 * 2 ** 17

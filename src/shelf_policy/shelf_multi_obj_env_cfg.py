@@ -9,7 +9,7 @@ import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg, RigidObjectCfg, RigidObjectCollectionCfg
 from omni.isaac.lab.sim.schemas.schemas_cfg import RigidBodyPropertiesCfg
 from omni.isaac.lab.sim.spawners.from_files.from_files_cfg import UsdFileCfg
-from omni.isaac.lab.sensors import FrameTransformerCfg
+from omni.isaac.lab.sensors import FrameTransformerCfg, ContactSensorCfg
 from omni.isaac.lab.envs import ManagerBasedRLEnvCfg
 from omni.isaac.lab.managers import ActionTermCfg as ActionTerm
 from omni.isaac.lab.managers import CurriculumTermCfg as CurrTerm
@@ -60,10 +60,11 @@ class ShelfSceneCfg(InteractiveSceneCfg):
     
     shelf = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Shelf",
-        spawn=sim_utils.UsdFileCfg(usd_path=f"omniverse://localhost/Library/Shelf/Arena/speedrack.usd", mass_props=MassPropertiesCfg(mass=100)),
+        spawn=sim_utils.UsdFileCfg(usd_path=f"omniverse://localhost/Library/Shelf/Arena/speedrack.usd", mass_props=MassPropertiesCfg(mass=100), ),
         init_state=RigidObjectCfg.InitialStateCfg(pos=(-0.7, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
         debug_vis=False,
     )
+
 
     # robots
     robot: ArticulationCfg = MISSING
@@ -73,7 +74,7 @@ class ShelfSceneCfg(InteractiveSceneCfg):
 
     #Objects
     object_collection: RigidObjectCollectionCfg = MISSING
-
+    # shelf_contact: ContactSensorCfg = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Shelf", update_period=0.0, history_length=1, debug_vis=False)
 
 
     
@@ -143,28 +144,23 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # action penalty
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
     joint_vel = RewTerm(
         func=mdp.rewards_sweep_ur5e.joint_vel_l2,
-        weight=-0.1,
+        weight=-0.05,
         params={"asset_cfg": SceneEntityCfg("robot")},
-    )
-    soft_joint_vel = RewTerm(
-        func=mdp.rewards_sweep_ur5e.joint_vel_limits,
-        weight=-1e-4,
-        params={"soft_ratio": 0.2}
     )
 
     reaching = RewTerm(
         func=mdp.rewards_sweep_ur5e.reward_for_hand_reaching,
-        weight=3.0,
-        params={"object_id_dict_rev": MISSING}
+        weight=2.0,
+        params={}
     )
 
 
     orientation = RewTerm(
         func=mdp.rewards_sweep_ur5e.ee_Align,
-        weight=3.0,
+        weight=2.0,
         params={},
     )
 
@@ -180,9 +176,6 @@ class RewardsCfg:
 
     object_collision = RewTerm(func=mdp.rewards_sweep_ur5e.object_collision, params={}, weight=-1.0)
 
-    # object_flip = RewTerm(func=mdp.rewards_sweep_ur5e.object_flip, params={}, weight=-0.2)
-
-    # ee_vel_penalty = RewTerm(func=mdp.rewards_sweep_ur5e.ee_vel_penalty, params={}, weight = -1e-4)
 
 
 @configclass
@@ -192,13 +185,15 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING})
     shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=False, params={"threshold": 0.1})
+    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.8})
     # success_sweep = DoneTerm(func=mdp.success_sweeping, time_out=False, params= {"command_name": "target_goal_pos", "sweeping_threshold": 0.02, "homing_threshold": 0.6})
 
 
 @configclass
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
-    
+    # shelf_contact = CurrTerm(func=mdp.curriculums.modify_termination_condition, params={"term_name": "hand_velocity", "param_name": "threshold", "params":1.2, "num_steps": 100000})
+
     # sweeping = CurrTerm(func=mdp.modify_reward_weight, params={"term_name": "sweeping_object", "weight": 6.0, "num_steps": 10000})
     # action_rate = CurrTerm(
     #     func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.1, "num_steps": 10000}
@@ -236,10 +231,10 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.decimation = 2
-        self.episode_length_s = 10.0
+        self.episode_length_s = 8.0
 
         # simulation settings
-        self.sim.dt = 1 / 60  # 100Hz
+        self.sim.dt = 1.0 / 60.0  # 100Hz
 
         self.sim.physx .bounce_threshold_velocity = 0.2
         # self.sim.physx.bounce_threshold_velocity = 0.01
@@ -248,3 +243,6 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.gpu_total_aggregate_pairs_capacity = 16 * 1024 * 16
         self.sim.physx.friction_correlation_distance = 0.00625
         self.sim.physx.gpu_max_rigid_patch_count = 5 * 2 ** 17
+        # self.sim.physics_material.dynamic_friction = 0.55
+
+

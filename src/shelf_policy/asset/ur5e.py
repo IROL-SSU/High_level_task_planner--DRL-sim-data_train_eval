@@ -22,25 +22,23 @@ from omni.isaac.lab.assets.articulation import ArticulationCfg
 
 UR5e_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"omniverse://localhost/Library/Shelf/Robots/UR5e/UR5e_v2.usd",
+        usd_path=f"omniverse://localhost/Library/Shelf/Robots/UR5e/UR5e.usd",
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
         ),
-        activate_contact_sensors=True,
+        activate_contact_sensors=False,
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.79505),
         rot=(0.0, 0.0, 0.0, 1.0),
         joint_pos={
             "shoulder_pan_joint": 0.0,  # -1.7540559 / -1.6
-            "shoulder_lift_joint": -2.2,  # -1.27409 / -1.9
-            "elbow_joint": 2.2,  # 1.3439 / 1.9
+            "shoulder_lift_joint": -2.0,  # -1.27409 / -1.9
+            "elbow_joint": 2.0,  # 1.3439 / 1.9
             "wrist_1_joint": 0.0,  # 0.0
             "wrist_2_joint": 1.57,  # 1.5708 / 1.57
             "wrist_3_joint": 0.0,  # 1.5708 / 2.1
-            "left_outer_knuckle_joint": 0.0,  # 0.0
-            "right_outer_knuckle_joint": 0.0,  # 0.0
         },
     ),
     actuators={
@@ -53,24 +51,10 @@ UR5e_CFG = ArticulationCfg(
                 "wrist_2_joint",
                 "wrist_3_joint",
             ],
-            velocity_limit={
-                "shoulder_pan_joint": 3.14, #3.14
-                "shoulder_lift_joint": 3.14, #3.14
-                "elbow_joint": 3.14, #3.14
-                "wrist_1_joint": 6.28, #6.28
-                "wrist_2_joint": 6.28, #6.28
-                "wrist_3_joint": 6.28, #6.28
-            },
+            velocity_limit=100.0,
             effort_limit=87.0,
-            stiffness=210,
-            damping=21,
-        ),
-        "gripper": ImplicitActuatorCfg(
-            joint_names_expr=["left_outer_knuckle_joint", "right_outer_knuckle_joint"],
-            effort_limit=200.0,
-            velocity_limit=0.5,
-            stiffness=200,
-            damping=20,
+            stiffness=800.0,
+            damping=40.0,
         ),
     },
 )

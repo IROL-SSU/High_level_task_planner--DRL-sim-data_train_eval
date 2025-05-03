@@ -3,6 +3,7 @@
 # ###
 
 import reach_policy.config.ur3
+import reach_policy.config.ur5e
 import shelf_policy.config.ur3.sweeping
 import shelf_policy.config.ur3.grasping
 import shelf_policy.config.ur5e.sweeping
