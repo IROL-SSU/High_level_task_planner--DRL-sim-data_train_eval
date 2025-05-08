@@ -55,7 +55,7 @@ from PIL import Image
 @configclass
 class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     # env
-    decimation = 20 # 기존 2 / 60(확인용) / 10(학습용)
+    decimation = 30 # 기존 2 / 60(확인용) / 10(학습용)
     episode_length_s = 4.0 # 기존 5.0
     action_space = [{3}, {5}]
     observation_space = 18
@@ -99,10 +99,10 @@ class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     )
     write_image_to_file = False
     
-    mean=[0.650085384273529, 0.6429061861377292, 0.6164081222491794]
-    std=[0.1687737046184826, 0.1750711261287332, 0.19902168659025637]
+    mean=[0.6490565662935045, 0.6384478909683228, 0.6093087261856927]
+    std=[0.17412873090631276, 0.17749775393465503, 0.20400448700329865]
     
-    MODEL_PATH = "/home/haneul/IsaacLab_IROL/src/High_level_policy_direct/FCN_model/best_model.pth"
+    MODEL_PATH = "/home/haneul/IsaacLab_IROL/src/High_level_policy_direct/FCN_model/best_model_45.pth"
 
     rigid_obj_dict = {}
     # 객체 정보 및 Pose 정보 가져오기
@@ -111,11 +111,11 @@ class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     object_id_dict = object_cfgs["id"]
     object_id_dict_rev = {str(v): k for k, v in object_id_dict.items()}
     # 크기(키 개수) 비교 후 에러 발생
-    if len(object_path_dict) != len(object_pose_dict):
-        raise ValueError(
-            f"Error: Object count mismatch! "
-            f"objects({len(object_path_dict)}) != pose({len(object_pose_dict)})"
-        )
+    # if len(object_path_dict) != len(object_pose_dict):
+    #     raise ValueError(
+    #         f"Error: Object count mismatch! "
+    #         f"objects({len(object_path_dict)}) != pose({len(object_pose_dict)})"
+    #     )
 
     for key, value in object_path_dict.items():
         rigid_obj: RigidObjectCfg = RigidObjectCfg(
@@ -174,6 +174,7 @@ class HighlevelDirectEnvCfg(DirectRLEnvCfg):
     sweeping_again = -15.0
     sweeping_and_grasping = -10.0
     termination_penalty = -15.0
+    last_row_action_penalty = 0.0
 
 
 class HighlevelDirectEnv(DirectRLEnv):
@@ -768,6 +769,7 @@ class HighlevelDirectEnv(DirectRLEnv):
         env_indices = torch.arange(num_envs, device=self.device)
         
         print(f"previous_shelf_column_distribution: {self.previous_column_distribution}")
+        print(f"previous_shelf_front_object: {self.previous_shelf_front_object}")
         print(f"previous_shelf_object_config: {self.previous_shelf_object_config}")
         print(f"pol: {pol}")
         print(f"col: {col}")
@@ -831,7 +833,13 @@ class HighlevelDirectEnv(DirectRLEnv):
         termination = termination_spr | termination_swl
         termination_penalty = self.cfg.termination_penalty * termination.float()
         
-        total_reward = (target_grasping_reward + sweeping_right_reward + sweeping_left_reward + grasping_reward + grasping_penalty + sweeping_right_penalty + sweeping_left_penalty + target_sweeping_penalty + no_object_penalty + grasping_w_n_sweeping_penalty + sweeping_again_penalty + sweeping_and_grasping_penalty + termination_penalty)
+        ## last row action termination
+        # 1. 조건 1: 이전 step의 shelf_front_object에서, 선택된 column(col)의 거리가 4.5이고 해당 column의 물체가 target 이 아닌 경우
+        last_row_cond1 = (self.previous_shelf_front_object_distance.gather(dim=1, index=col.unsqueeze(1)).squeeze(1) == 4.5) & (self.previous_shelf_front_object.gather(dim=1, index=col.unsqueeze(1)).squeeze(1) != target)
+        last_row_penalty = last_row_cond1.float() * self.cfg.last_row_action_penalty
+        
+        
+        total_reward = (target_grasping_reward + sweeping_right_reward + sweeping_left_reward + grasping_reward + grasping_penalty + sweeping_right_penalty + sweeping_left_penalty + target_sweeping_penalty + no_object_penalty + grasping_w_n_sweeping_penalty + sweeping_again_penalty + sweeping_and_grasping_penalty + termination_penalty + last_row_penalty)
         
         self.previous_action_policy = self.action_policy.clone()
         self.previous_action_column = self.action_column.clone()
@@ -1060,7 +1068,7 @@ class HighlevelDirectEnv(DirectRLEnv):
 
         # 중심 열에 더 높은 가중치를 부여
         position_weights = [
-            3.0 if pos[1] == random_col else 1.0 for pos in same_category_positions
+            5.0 if pos[1] == random_col else 1.0 for pos in same_category_positions
         ]
         place_items_with_weights(
             same_category_items, same_category_positions, position_weights
@@ -1075,7 +1083,7 @@ class HighlevelDirectEnv(DirectRLEnv):
             if 0 <= col_idx < cols:
                 for row_idx in range(rows):
                     similar_category_positions.append((row_idx, col_idx))
-                    position_weights.append(3.0)
+                    position_weights.append(5.0)
 
                     # 좌, 우로 확장
                     adj_col_idx = col_idx + (1 if col_idx == random_col - 1 else -1)
@@ -1157,12 +1165,13 @@ class HighlevelDirectEnv(DirectRLEnv):
         expanded_coords = coords.unsqueeze(0).expand(env_ids.size(0), -1, -1)
         expanded_object_ids = object_ids_tensor.unsqueeze(0).expand(env_ids.size(0), -1)
         
+        rows_idx = expanded_coords[:, :, 0].long()
+        cols_idx = expanded_coords[:, :, 1].long()
+        env_ids_broadcasted = env_ids[:, None].expand(-1, expanded_coords.shape[1])
+        
         # 값 채워넣기
         self.shelf_object_config[env_ids] = -1 # 초기화 하는 환경만 -1로 초기화
-        self.shelf_object_config[env_ids.unsqueeze(1),
-                           expanded_coords[:, :, 0],
-                           expanded_coords[:, :, 1]] = expanded_object_ids
-        
+        self.shelf_object_config[env_ids_broadcasted, rows_idx, cols_idx] = expanded_object_ids
         
         ## ---------------------------------- ##
         ## 랜덤으로 target object가 해당하는 열의 좌, 우 열 중 하나의 object를 제거해서 sweeping 환경 만듬
@@ -1177,9 +1186,7 @@ class HighlevelDirectEnv(DirectRLEnv):
             unique_envs, unique_indices = torch.unique(
                 torch.nonzero(match_mask, as_tuple=True)[0], return_inverse=True
             )
-            unique_cols = col_indices[
-                unique_indices
-            ]  # 환경별 유일한 col index 가져오기
+            unique_cols = col_indices[unique_indices]  # 환경별 유일한 col index 가져오기
 
             # ✅ "가장 앞쪽(세 번째 행, row_index=2)의 물체" 기준으로 찾기
             front_row_index = 3  # 사용자 기준 "가장 앞쪽 행"의 row index

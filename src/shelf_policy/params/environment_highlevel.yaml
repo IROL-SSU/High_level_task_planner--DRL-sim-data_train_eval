@@ -55,14 +55,14 @@ objects:
     can_2: omniverse://localhost/Library/Shelf/Object/Can_9.usd
     can_3: omniverse://localhost/Library/Shelf/Object/Can_8.usd
     can_4: omniverse://localhost/Library/Shelf/Object/Can_10.usd
-    cup_1: omniverse://localhost/Library/Shelf/Object/Cup_1_8.usd
-    cup_2: omniverse://localhost/Library/Shelf/Object/Cup_2_8.usd
-    cup_3: omniverse://localhost/Library/Shelf/Object/Cup_4_8.usd
-    cup_4: omniverse://localhost/Library/Shelf/Object/Cup_5_8.usd
-    mug_1: omniverse://localhost/Library/Shelf/Object/Mug_2_8.usd
-    mug_2: omniverse://localhost/Library/Shelf/Object/Mug_3_8.usd
-    mug_3: omniverse://localhost/Library/Shelf/Object/Mug_4_8.usd
-    mug_4: omniverse://localhost/Library/Shelf/Object/Mug_5_8.usd
+    cup_1: omniverse://localhost/Library/Shelf/Object/Cup_1_9.usd
+    cup_2: omniverse://localhost/Library/Shelf/Object/Cup_2_9.usd
+    cup_3: omniverse://localhost/Library/Shelf/Object/Cup_4_9.usd
+    cup_4: omniverse://localhost/Library/Shelf/Object/Cup_5_9.usd
+    mug_1: omniverse://localhost/Library/Shelf/Object/Mug_2_9.usd
+    mug_2: omniverse://localhost/Library/Shelf/Object/Mug_3_9.usd
+    mug_3: omniverse://localhost/Library/Shelf/Object/Mug_4_9.usd
+    mug_4: omniverse://localhost/Library/Shelf/Object/Mug_5_9.usd
     bottle_1 : omniverse://localhost/Library/Shelf/Object/Bottle_6.usd
     bottle_2 : omniverse://localhost/Library/Shelf/Object/Bottle_7.usd
     bottle_3 : omniverse://localhost/Library/Shelf/Object/Bottle_8.usd
