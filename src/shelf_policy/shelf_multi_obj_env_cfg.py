@@ -231,7 +231,7 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.decimation = 2
-        self.episode_length_s = 8.0
+        self.episode_length_s = 11.0
 
         # simulation settings
         self.sim.dt = 1.0 / 60.0  # 100Hz

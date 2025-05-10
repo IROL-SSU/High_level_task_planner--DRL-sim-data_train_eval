@@ -172,10 +172,11 @@ def pushing_target(env: ManagerBasedRLEnv,
     offset_pos[:, 2] = offset_pos[:, 2] + 0.09
 
     distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
-    zeta_m = torch.where((torch.norm(offset_pos - ee_pos_w, dim=-1, p=2)) < 0.03 , torch.where(torch.abs(offset_pos[:, 1] - wrist_pos_w[:, 1])<0.02, 1, 0), 0)
+    zeta_m = torch.where((torch.norm(offset_pos - ee_pos_w, dim=-1, p=2)) < 0.03 , torch.where(torch.abs(offset_pos[:, 1] - wrist_pos_w[:, 1])<0.03, 1, 0), 0)
+    # zeta_m = torch.where(torch.norm(offset_pos - ee_pos_w, dim=-1, p=2) < 0.03 , 1, 0)
     obj_vel_rew = torch.where((target_lin_vel_w[:, 1]) > 0.05, torch.where((target_lin_vel_w[:, 1]) < 0.2, 0.5, 0), 0)
     hand_vel_rew = torch.where(ee_lin_vel_y_w > 0.05, 1.0, 0.0) - torch.where(torch.abs(ee_lin_vel_x_w) > 0.01, 0.7, 0.0)
-    reward = torch.where(distance < 0.03, 2.0, zeta_m *((1 - distance/0.15) + hand_vel_rew))
+    reward = torch.where(distance < 0.03, 2.0, zeta_m *((1 - distance/0.15) + obj_vel_rew))
 
     # print(offset_pos[:, 1] - wrist_pos_w[:, 1])
     # print(direction)
@@ -183,6 +184,8 @@ def pushing_target(env: ManagerBasedRLEnv,
     # print(target_lin_vel_w[:, 1])
     # print(f"offset pos: {offset_pos}")
     # print(f"ee pos: {ee_pos_w}")
+    # print(f"zeta: {zeta_m}")
+    # print(f"wrist align: {torch.abs(offset_pos[:, 1] - wrist_pos_w[:, 1])}")
 
     # print(f"ee_distance: {torch.norm(offset_pos - ee_pos_w, dim=-1, p=2)}")
     # print(f"current position: {curr_pos_w}")
@@ -243,6 +246,7 @@ def homing_reward(env: ManagerBasedRLEnv,
     
     # print(f"joint error: {joint_pos_error}")
     reward_for_home_pose = torch.exp(-0.5 * joint_pos_error)
+    # reward_for_home_pose = 1.0 - torch.tanh(joint_pos_error/2.0)
 
     # print(f"joint reward: {torch.where(distance < 0.04, reward_for_home_pose, 0)}")
     # print(distance)

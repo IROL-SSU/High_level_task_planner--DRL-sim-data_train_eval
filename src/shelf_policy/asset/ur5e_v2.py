@@ -79,7 +79,7 @@ UR5e_CFG = ArticulationCfg(
             ],
             velocity_limit={
                 "shoulder_pan_joint": 3.14,
-                "shoulder_lift_joint":3.14,
+                "shoulder_lift_joint": 3.14,
                 "elbow_joint": 3.14,
                 "wrist_1_joint":6.28,
                 "wrist_2_joint":6.28,
