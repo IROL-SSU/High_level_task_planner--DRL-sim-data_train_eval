@@ -86,6 +86,12 @@ class ShelfSceneCfg(InteractiveSceneCfg):
 @configclass
 class CommandsCfg:
     """Command terms for the MDP."""
+    target_pos = mdp.GraspTargetPosCommandCfg(
+        asset_name=MISSING,
+        asset_dict=MISSING,
+        object_id_dict_rev=MISSING,
+        debug_vis=True,)
+
 
 
 @configclass
@@ -134,32 +140,42 @@ class EventCfg:
 class RewardsCfg:
     """Reward terms for the MDP."""
 
-    # action penalty
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
+    """
+    Penalty terms
+    action_rate: 
+    joint_vel:
+    shelf_collision:
+    object_collision:
+    """
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
     joint_vel = RewTerm(
-        func=mdp.rewards_sweep_ur5e.joint_vel_l2,
-        weight=-0.1,
+        func=mdp.rewards_grasp_ur5e.joint_vel_l2,
+        weight=-0.05,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
-    soft_joint_vel = RewTerm(
-        func=mdp.rewards_sweep_ur5e.joint_vel_limits,
-        weight=-1e-4,
-        params={"soft_ratio": 0.2}
-    )
+    shelf_collision = RewTerm(func=mdp.rewards_grasp_ur5e.shelf_Collision, params={}, weight=-0.4)
+    object_collision = RewTerm(func=mdp.rewards_grasp_ur5e.object_collision, params={}, weight=-1.0)
+
+
+    """
+    Reward terms
+    reaching:
+    align_ee:
+    grasp_object:
+    lifting_object:
+    """
     reaching = RewTerm(
-        func=mdp.rewards_grasp.reward_for_hand_reaching,
-        weight=3.0,
+        func=mdp.rewards_grasp_ur5e.reward_for_hand_reaching,
+        weight=2.0,
         params={}
     )
-    align_ee = RewTerm(func=mdp.rewards_grasp.align_ee_target, params={}, weight=2.0)
-    grasp_object = RewTerm(func=mdp.rewards_grasp.object_lift, weight=7.0,
-        params={
-            "threshold": 1.13 
-        },
-    )
+    align_ee = RewTerm(func=mdp.rewards_grasp_ur5e.align_ee_target, params={}, weight=2.0)
+    # grasp_object = RewTerm(func=mdp.rewards_grasp_ur5e.grasp_object, weight=7.0, params={"threshold": 0.03, "open_joint_pos": MISSING, "asset_cfg":SceneEntityCfg("robot", joint_names=MISSING)},)
+    # lifting_object = RewTerm(func=mdp.rewards_grasp_ur5e.object_lift, params={"threshold": 1.07}, weight=10.0)
 
-    shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.4)
-    # lifting_object = RewTerm(func=mdp.rewards_grasp.object_lift, params={"threshold": 1.05}, weight=10.0)
+
+
+
     # homing_after_grasp = RewTerm(func=mdp.rewards_grasp.homing_reward, 
     #                              params={"gripper_cfg": SceneEntityCfg("robot", joint_names=MISSING)}, weight=10.0)
 
@@ -171,6 +187,7 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING, "rotation_condition": MISSING})
     shelf_collision = DoneTerm(func=mdp.shelf_collision_termination, time_out=False, params={"threshold": 0.1})
+    # hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.8})
 
 
 @configclass
@@ -212,10 +229,10 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.decimation = 2
-        self.episode_length_s = 10.0
+        self.episode_length_s = 6.0
 
         # simulation settings
-        self.sim.dt = 1/60  # 100Hz
+        self.sim.dt = 1.0/60.0  # 100Hz
 
         self.sim.physx.bounce_threshold_velocity = 0.2
         # self.sim.physx.bounce_threshold_velocity = 0.01

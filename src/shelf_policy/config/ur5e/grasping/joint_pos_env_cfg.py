@@ -36,7 +36,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         self.scene.robot = UR5e_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # Set actions for the specific robot type (franka)
-        self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
+        self.actions.arm_action = mdp.JointPositionActionCfg(
             asset_name="robot", 
             joint_names=["shoulder_pan_joint",
                         "shoulder_lift_joint",
@@ -44,7 +44,8 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
                         "wrist_1_joint",
                         "wrist_2_joint",
                         "wrist_3_joint"], 
-            scale=0.5, 
+            scale=0.5,
+            use_default_offset=True
         )
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
@@ -184,6 +185,13 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
 
         self.terminations.object_drop.params["height_condition"] = 1.04
         self.terminations.object_drop.params["rotation_condition"] = 0.9
+
+        self.commands.target_pos.asset_dict = rigid_obj_dict
+        self.commands.target_pos.object_id_dict_rev = object_id_dict_rev
+        self.commands.target_pos.asset_name = "object_collection"
+
+        # self.rewards.grasp_object.params["open_joint_pos"] = 0.0
+        # self.rewards.grasp_object.params["asset_cfg"].joint_names=["finger_joint", "right_outer_knuckle_joint"]
 
         
 

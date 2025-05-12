@@ -39,7 +39,7 @@ def randomize_scene(
 
 
     if task_mode == "grasping":
-        target_object_name = choice(["cup_1", "cup_2", "cup_3", "can_1"])
+        target_object_name = choice(["cup_1", "bottle_1", "cup_3", "can_1"])
         
     elif task_mode == "sweeping_right":
         target_object_name = choice(list(asset_dict.keys()))

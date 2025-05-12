@@ -8,7 +8,7 @@ from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG
 
-from .position_command import ObjectGoalPosCommand, EEGoalPosCommand, DynamicObjectGoalPosCommand
+from .position_command import ObjectGoalPosCommand, EEGoalPosCommand, DynamicObjectGoalPosCommand, GraspTargetPosCommand
 
 @configclass
 class DynamicObjectGoalPosCommandCfg(CommandTermCfg):
@@ -36,6 +36,28 @@ class DynamicObjectGoalPosCommandCfg(CommandTermCfg):
 
     # Set the scale of the visualization markers to (0.1, 0.1, 0.1)
     goal_pose_visualizer_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
+    current_pose_visualizer_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
+
+@configclass
+class GraspTargetPosCommandCfg(CommandTermCfg):
+    class_type: type = GraspTargetPosCommand
+    resampling_time_range: tuple[float, float] = (1e6, 1e6) # no resampling based on time
+
+    # Rigidcollection asset name
+    asset_name: str = MISSING
+
+    asset_dict: dict = MISSING
+
+    object_id_dict_rev: dict = MISSING
+
+    marker_pos_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
+
+    current_pose_visualizer_cfg: VisualizationMarkersCfg = FRAME_MARKER_CFG.replace(
+        prim_path="/Visuals/Command/body_pose"
+    )
+    """The configuration for the current pose visualization marker. Defaults to FRAME_MARKER_CFG."""
+
+    # Set the scale of the visualization markers to (0.1, 0.1, 0.1)
     current_pose_visualizer_cfg.markers["frame"].scale = (0.1, 0.1, 0.1)
 
 

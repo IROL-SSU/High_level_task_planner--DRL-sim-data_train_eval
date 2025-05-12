@@ -16,7 +16,7 @@ from omni.isaac.lab.markers.config import FRAME_MARKER_CFG
 
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
-    from .commands_cfg import ObjectGoalPosCommandCfg, EEGoalPosCommandCfg, DynamicObjectGoalPosCommandCfg
+    from .commands_cfg import ObjectGoalPosCommandCfg, EEGoalPosCommandCfg, DynamicObjectGoalPosCommandCfg, GraspTargetPosCommandCfg
 
 class DynamicObjectGoalPosCommand(CommandTerm):
     """
@@ -113,6 +113,98 @@ class DynamicObjectGoalPosCommand(CommandTerm):
 
         # -- current body pose
 
+        # Get the target IDs directly from the environment tensor
+        target_ids = self.env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
+
+        # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+        body_link_state_w = self.object_collection.data.object_link_state_w[torch.arange(self.env.scene.num_envs), target_ids]
+
+        self.current_pose_visualizer.visualize(body_link_state_w[..., :3], body_link_state_w[..., 3:7])
+
+class GraspTargetPosCommand(CommandTerm):
+    """
+    Command term that generates position command for target object manipulation task.
+
+    This command term generates 3D position commands for the object. 
+    """
+
+    cfg: GraspTargetPosCommandCfg
+    """Configuration for the command term"""
+
+    def __init__(self, 
+                 cfg: GraspTargetPosCommandCfg, 
+                 env: ManagerBasedRLEnv,):
+        """
+        Initialize the command term class.
+
+        Args:
+        cfg: The configuration parameters for the command term.
+        env: The environment object
+        """
+        # initialize the bse class
+        super().__init__(cfg, env)
+
+        self.env = env
+
+        self.object_collection: RigidObjectCollection = env.scene[cfg.asset_name]
+        
+        self.asset_dict: dict = cfg.asset_dict
+
+        self.object_id_dict_rev = cfg.object_id_dict_rev
+
+        # Get the target IDs directly from the environment tensor
+        target_ids = self.env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
+
+        # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+        self.target_init_state_w = self.object_collection.data.default_object_state[torch.arange(self.env.scene.num_envs), target_ids]
+
+        self.pos_command_e = self.target_init_state_w[..., 0, :3]
+
+        self.pos_command_w = self.pos_command_e + self._env.scene.env_origins
+
+    def _resample_command(self, env_ids: Sequence[int]):
+
+        # Get the target IDs directly from the environment tensor
+        target_ids = self.env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
+
+        # Get the world state for only the reset environments
+        self.target_init_state_w[env_ids] = self.object_collection.data.object_link_state_w[env_ids, target_ids[env_ids]]
+
+        # Update only the reset environments in pos_command_w
+        self.pos_command_w[env_ids] = self.target_init_state_w[env_ids, ..., :3]
+
+    def _update_metrics(self):
+        pass
+
+    def _update_command(self):
+        pass
+
+    @property
+    def command(self) -> torch.Tensor:
+        """
+        The desired goal pose in the environment frame. Shpe is (num_envs, 7)
+        """
+        return torch.cat((self.pos_command_w, self.target_init_state_w[..., 3:7]), dim=-1)
+
+    def _set_debug_vis_impl(self, debug_vis: bool):
+        # create markers if necessary for the first tome
+        if debug_vis:
+            if not hasattr(self, "goal_pose_visualizer"):
+                # -- current body pose
+                self.current_pose_visualizer = VisualizationMarkers(self.cfg.current_pose_visualizer_cfg)
+            # set their visibility to true
+            self.current_pose_visualizer.set_visibility(True)
+        else:
+            if hasattr(self, "goal_pose_visualizer"):
+                self.current_pose_visualizer.set_visibility(False)
+
+    def _debug_vis_callback(self, event):
+        # check if robot is initialized
+        # note: this is needed in-case the robot is de-initialized. we can't access the data
+        if not self.object_collection.is_initialized:
+            return
+        
+        # update the markers
         # Get the target IDs directly from the environment tensor
         target_ids = self.env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
 
