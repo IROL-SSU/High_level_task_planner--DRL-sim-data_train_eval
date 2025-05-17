@@ -121,11 +121,9 @@ def hand_velocity_termination(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg 
     robot: Articulation = env.scene[asset_cfg.name]
 
     #ee lin vel
-    ee_lin_vel_w = robot.data.body_state_w[:,10,7:10].clone()
-    ee_ang_vel_w = robot.data.body_state_w[:, 10, 10:13].clone()
-    termination = (torch.norm(ee_lin_vel_w, dim=-1, p=2) > threshold) |  (torch.norm(ee_ang_vel_w, dim=-1, p=2) > 2.5)
-
-    
+    ee_lin_vel_w = robot.data.body_state_w[:, 12,7:10].clone()
+    ee_ang_vel_w = robot.data.body_state_w[:, 12, 10:13].clone()
+    termination = (torch.norm(ee_lin_vel_w, dim=-1, p=2) > threshold) #|  (torch.norm(ee_ang_vel_w, dim=-1, p=2) > 2.5)
 
     return termination
 

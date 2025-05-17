@@ -32,7 +32,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         # post init of parent
         super().__post_init__()
 
-        # Set Franka as robot
+        # Set UR5e as robot
         self.scene.robot = UR5e_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # Set actions for the specific robot type (franka)
@@ -47,6 +47,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             scale=0.5,
             use_default_offset=True
         )
+        
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
             joint_names=["finger_joint",
@@ -110,7 +111,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             
             rigid_obj_dict[key] = rigid_obj
             
-        # Set Cup as object
+        # Set object_dict as object_collection
         self.scene.object_collection= RigidObjectCollectionCfg(rigid_objects=rigid_obj_dict)
 
 
@@ -190,8 +191,9 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         self.commands.target_pos.object_id_dict_rev = object_id_dict_rev
         self.commands.target_pos.asset_name = "object_collection"
 
-        # self.rewards.grasp_object.params["open_joint_pos"] = 0.0
-        # self.rewards.grasp_object.params["asset_cfg"].joint_names=["finger_joint", "right_outer_knuckle_joint"]
+        self.rewards.grasp_object.params["open_joint_pos"] = 0.0
+        self.rewards.grasp_object.params["asset_cfg"].joint_names=["finger_joint", "right_outer_knuckle_joint"]
+        self.rewards.homing_after_grasp.params["gripper_cfg"].joint_names=["finger_joint", "right_outer_knuckle_joint"]
 
         
 

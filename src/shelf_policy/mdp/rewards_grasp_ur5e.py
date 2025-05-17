@@ -27,15 +27,16 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
     # Get the target IDs directly from the environment tensor
     target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
 
+
     # Get the world state(position, orientation, linear velocity, angular velocity); R^13
     target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids].clone()
     ee_pos_w = ee.data.target_pos_w.clone()
 
 
     offset_pos = target_pos_w.clone()
-    offset_pos[:, 0] = offset_pos[:, 0] + 0.05
+    offset_pos[:, 0] = offset_pos[:, 0] 
     offset_pos[:, 1] = offset_pos[:, 1] 
-    offset_pos[:, 2] = offset_pos[:, 2] + 0.08
+    offset_pos[:, 2] = offset_pos[:, 2] + 0.06
 
     distance = torch.norm((offset_pos[:, :3] - ee_pos_w[..., 0,:3]), dim=-1, p=2)
 
@@ -63,12 +64,44 @@ def align_ee_target(env: ManagerBasedRLEnv,
     ee_tcp_rot_mat = matrix_from_quat(ee_tcp_quat)
     shelf_rot_mat = matrix_from_quat(shelf_quat)
 
+
+    shelf_y_axis = shelf_rot_mat[..., 2]
+    ee_tcp_y_axis = ee_tcp_rot_mat[..., 2] * -1
+
     shelf_z_axis = shelf_rot_mat[..., 2]
     ee_tcp_z_axis = ee_tcp_rot_mat[..., 2]
 
-    align = torch.bmm(ee_tcp_z_axis.unsqueeze(1), shelf_z_axis.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    align_y = torch.bmm(ee_tcp_y_axis.unsqueeze(1), shelf_y_axis.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+    align_z = torch.bmm(ee_tcp_z_axis.unsqueeze(1), shelf_z_axis.unsqueeze(-1)).squeeze(-1).squeeze(-1)
     
-    return torch.sign(align) * align**2
+    return torch.sign(align_z) * align_z ** 2
+    # return 0.5 * (torch.sign(align_y) * align_y**2 + torch.sign(align_z)*align_z**2)
+
+def align_grasp_around_target(env: ManagerBasedRLEnv,
+                              object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),) -> torch.Tensor:
+    """Bonus for correct hand orientation around the handle.
+
+    The correct hand orientation is when the left finger is above the handle and the right finger is below the handle.
+    """
+    object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+    
+
+    # Get the target IDs directly from the environment tensor
+    target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
+
+
+    # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+    target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids].clone()
+
+    # Fingertips position: (num_envs, n_fingertips, 3)
+    lfinger_pos = env.scene["finger_frame"].data.target_pos_w[..., 0, :]
+    rfinger_pos = env.scene["finger_frame"].data.target_pos_w[..., 1, :]
+
+    # Check if hand is in a graspable pose
+    is_graspable = (rfinger_pos[:, 1] > target_pos_w[:, 1]) & (lfinger_pos[:, 1] < target_pos_w[:, 1])
+
+    # bonus if left finger is above the drawer handle and right below
+    return is_graspable
 
 
 def grasp_object(
@@ -92,12 +125,14 @@ def grasp_object(
     
     offset_pos[:,0] = offset_pos[:, 0] 
     offset_pos[:,1] = offset_pos[:, 1] 
-    offset_pos[:,2] = offset_pos[:, 2] + 0.08
+    offset_pos[:,2] = offset_pos[:, 2] + 0.06
     
     distance = torch.norm(offset_pos - ee_tcp_pos, dim=-1, p=2)
 
     is_close = distance <= threshold
-    return is_close * torch.sum(gripper_joint_pos - open_joint_pos, dim=-1)
+    reward = is_close * torch.sum(gripper_joint_pos - open_joint_pos, dim=-1)
+    # reward = torch.where(distance < threshold, torch.sum(gripper_joint_pos - open_joint_pos, dim=-1), torch.sum(open_joint_pos - gripper_joint_pos, dim=-1))
+    return reward
 
 def object_lift(env: ManagerBasedRLEnv, 
                 threshold: float, 
@@ -112,9 +147,46 @@ def object_lift(env: ManagerBasedRLEnv,
     ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
     offset_pos = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids].clone()
     
-    distance = torch.norm(offset_pos - ee_frame.data.target_pos_w[..., 0, :], dim=-1, p=2)
+    # distance = torch.norm(offset_pos - ee_frame.data.target_pos_w[..., 0, :], dim=-1, p=2)
 
     return torch.where(offset_pos[:, 2]> threshold, 1.0, 0.0)
+
+def homing_reward(env: ManagerBasedRLEnv,
+                  gripper_cfg: SceneEntityCfg,
+                  object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
+                  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+                  ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
+                  ):
+    robot: Articulation = env.scene[asset_cfg.name]
+    ee_frame: FrameTransformer = env.scene[ee_frame_cfg.name]
+
+    object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+    
+
+    # Get the target IDs directly from the environment tensor
+    target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
+
+
+    # Get the world state(position, orientation, linear velocity, angular velocity); R^13
+    target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids].clone()
+    # obtain the desired and current positions
+    offset_pos = target_pos_w.clone()
+    offset_pos[:, 0] = offset_pos[:, 0] 
+    offset_pos[:, 1] = offset_pos[:, 1] 
+    offset_pos[:, 2] = offset_pos[:, 2] + 0.06
+    
+    distance = torch.norm(offset_pos - ee_frame.data.target_pos_w[..., 0, :], dim=-1, p=2)
+
+
+    gripper_joint_pos = env.scene[gripper_cfg.name].data.joint_pos[:, gripper_cfg.joint_ids]
+    
+    joint_pos_error = torch.sum(torch.abs(robot.data.joint_pos[:, :6] - robot.data.default_joint_pos[:, :6]), dim=1)
+    reward_for_home_pose = 1.0 - torch.tanh(joint_pos_error/2.0)
+
+    # print(f"gripper_joint: {torch.sum(gripper_joint_pos, dim=-1)}")
+    # print(f"distance: {distance}")
+    
+    return torch.where(torch.sum(gripper_joint_pos, dim=-1) > 0.4,  (offset_pos[:, 2] > 1.13)*reward_for_home_pose, 0)
 
 def object_collision(env: ManagerBasedRLEnv,
                 object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),)-> torch.Tensor:

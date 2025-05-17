@@ -110,12 +110,12 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_pos = ObsTerm(func=mdp.MA_joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel = ObsTerm(func=mdp.MA_joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
         target_obs_state = ObsTerm(func=mdp.MA_object_position_in_RRF, params={"object_id_dict_rev": MISSING}, noise = Unoise(n_min=-0.01, n_max=0.01))
-        ee_pos = ObsTerm(func=mdp.ee_pos_r)
-        ee_quat = ObsTerm(func=mdp.ee_quat_r)
+        ee_pose = ObsTerm(func=mdp.ee_pos_r)
+        # ee_quat = ObsTerm(func=mdp.ee_quat_r)
 
 
         def __post_init__(self):
@@ -150,7 +150,7 @@ class RewardsCfg:
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
     joint_vel = RewTerm(
         func=mdp.rewards_grasp_ur5e.joint_vel_l2,
-        weight=-0.05,
+        weight=-0.1,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     shelf_collision = RewTerm(func=mdp.rewards_grasp_ur5e.shelf_Collision, params={}, weight=-0.4)
@@ -170,8 +170,11 @@ class RewardsCfg:
         params={}
     )
     align_ee = RewTerm(func=mdp.rewards_grasp_ur5e.align_ee_target, params={}, weight=2.0)
-    # grasp_object = RewTerm(func=mdp.rewards_grasp_ur5e.grasp_object, weight=7.0, params={"threshold": 0.03, "open_joint_pos": MISSING, "asset_cfg":SceneEntityCfg("robot", joint_names=MISSING)},)
-    # lifting_object = RewTerm(func=mdp.rewards_grasp_ur5e.object_lift, params={"threshold": 1.07}, weight=10.0)
+    # align_grasp_around_handle = RewTerm(func=mdp.rewards_grasp_ur5e.align_grasp_around_target, weight=0.5)
+    grasp_object = RewTerm(func=mdp.rewards_grasp_ur5e.grasp_object, weight=5.0, params={"threshold": 0.03, "open_joint_pos": MISSING, "asset_cfg":SceneEntityCfg("robot", joint_names=MISSING)},)
+    lifting_object = RewTerm(func=mdp.rewards_grasp_ur5e.object_lift, params={"threshold": 1.07}, weight=7.0)
+    homing_after_grasp = RewTerm(func=mdp.rewards_grasp_ur5e.homing_reward, 
+                                 params={"gripper_cfg": SceneEntityCfg("robot", joint_names=MISSING)}, weight=12.0)
 
 
 
@@ -187,7 +190,7 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING, "rotation_condition": MISSING})
     shelf_collision = DoneTerm(func=mdp.shelf_collision_termination, time_out=False, params={"threshold": 0.1})
-    # hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.8})
+    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.6})
 
 
 @configclass
@@ -229,7 +232,7 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.decimation = 2
-        self.episode_length_s = 6.0
+        self.episode_length_s = 8.0
 
         # simulation settings
         self.sim.dt = 1.0/60.0  # 100Hz

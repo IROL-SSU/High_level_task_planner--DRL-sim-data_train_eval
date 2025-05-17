@@ -116,8 +116,7 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.MA_joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
         target_obs_state = ObsTerm(func=mdp.MA_object_position_in_RRF, params={"object_id_dict_rev": MISSING}, noise = Unoise(n_min=-0.01, n_max=0.01))
-        ee_pos = ObsTerm(func=mdp.ee_pos_r)
-        ee_quat = ObsTerm(func=mdp.ee_quat_r)
+        ee_pose = ObsTerm(func=mdp.ee_pos_r)
         goal_pos = ObsTerm(func=mdp.MA_target_goal_command, params={"command_name": MISSING})
 
 

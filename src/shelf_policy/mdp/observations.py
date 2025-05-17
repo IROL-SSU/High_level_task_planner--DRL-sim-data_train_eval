@@ -95,6 +95,7 @@ def MA_object_position_in_RRF(
         target_state_w[:, :3] # Target object's position in the world frame
     )
 
+
     return object_pos_b
 
 def MA_target_goal_command(
@@ -157,6 +158,8 @@ def object_pose_in_robot_root_frame(
     object_pos_b, object_quat_b = subtract_frame_transforms(
         robot.data.root_state_w[:, :3], robot.data.root_state_w[:, 3:7], object_pos_w
     )
+
+
 
     return torch.concat((object_pos_b, object_quat_b), dim=1)
 
