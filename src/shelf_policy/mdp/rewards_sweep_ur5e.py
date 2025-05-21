@@ -48,56 +48,15 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
 
     return reward
 
-def reaching_hand_v2_reward(env: ManagerBasedRLEnv,
-                            object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
-                            ee_frame_cfg: SceneEntityCfg = SceneEntityCfg("ee_frame"),
-                            asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-                            shelf_cfg: SceneEntityCfg = SceneEntityCfg("shelf")):
-    
-    robot: Articulation = env.scene[asset_cfg.name]
-    ee: FrameTransformer = env.scene[ee_frame_cfg.name]
-    object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
-    shelf: RigidObject = env.scene[shelf_cfg.name]
-
-    target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
-
-    # Get the world state(position, orientation, linear velocity, angular velocity); R^13
-    target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids].clone()
-    ee_pos_w = ee.data.target_pos_w.clone()
-    shelf_pow_w = shelf.data.root_pos_w[:, :3].clone()
-
-    offset_pos = target_pos_w.clone()
-    offset_pos[:, 0] = offset_pos[:, 0] + 0.01
-    offset_pos[:, 1] = offset_pos[:, 1] - 0.07
-    offset_pos[:, 2] = offset_pos[:, 2] + 0.09
-
-    #ee lin vel
-    ee_lin_vel_w = robot.data.body_state_w[:,10,7:10].clone()
-    ee_lin_vel_y_z_w = ee_lin_vel_w[:, 1:3].clone()
-
-    diff = (offset_pos[:, :3] - ee_pos_w[..., 0,:3])
-    diff_x = diff[:, 0]
-    diff_y_z = diff[:, 1:3]
-
-    reward_y = torch.exp(-5.0 * torch.norm(diff_y_z, dim=-1, p=2))
-
-    reward_x = torch.exp(-1.2 * torch.abs(diff_x)) * torch.exp(-10.0 * torch.norm(diff_y_z, dim=-1, p=2))
-
-    entrance_x = shelf_pow_w[:, 0] + 0.25
-# 낮은 steepness 값 사용: 예를 들어 20.0
-    steepness = 20.0  
-    in_shelf_weight = torch.sigmoid(steepness * (entrance_x - ee_pos_w[..., 0, 0]))
-    reward = (1 - in_shelf_weight) * (0.7 * reward_y + 0.3 * reward_x ) + in_shelf_weight * reward_x
-
-    return reward
-
 class ee_Align(ManagerTermBase):
     def __init__(self, cfg: RewTerm, env: ManagerBasedRLEnv):
         super().__init__(cfg, env)
         ee_frame_cfg = SceneEntityCfg("ee_frame")
         object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection")
+        shelf_cfg = SceneEntityCfg("shelf")
         self.object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
         self._ee: FrameTransformer = env.scene[ee_frame_cfg.name]
+        self._shelf: RigidObject = env.scene[shelf_cfg.name]
 
         self._initial_ee_quat = self._ee.data.target_quat_w.clone()
         
@@ -119,16 +78,17 @@ class ee_Align(ManagerTermBase):
 
         ee_tcp_rot_mat = matrix_from_quat(ee_tcp_quat)
         init_rot_mat = matrix_from_quat(self._initial_ee_quat[..., 0, :])
-
-        init_ee_y = init_rot_mat[..., 1]
+        shelf_rot_mat = matrix_from_quat(self._shelf.data.default_root_state[:, 3:7])
+        
+        init_ee_y = shelf_rot_mat[..., 1]
         ee_tcp_y = ee_tcp_rot_mat[..., 1]
 
-        init_ee_z = init_rot_mat[..., 2]
+        init_ee_z = shelf_rot_mat[..., 2]
         ee_tcp_z = ee_tcp_rot_mat[..., 2]
 
         # print(f"x: {init_rot_mat[..., 0]}, y: {init_rot_mat[..., 1]}, z: {init_rot_mat[..., 2]}")
 
-        align_y = torch.bmm(ee_tcp_y.unsqueeze(1), init_ee_y.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+        align_y = torch.bmm(ee_tcp_y.unsqueeze(1), init_ee_z.unsqueeze(-1)).squeeze(-1).squeeze(-1)
         align_z = torch.bmm(ee_tcp_z.unsqueeze(1), init_ee_z.unsqueeze(-1)).squeeze(-1).squeeze(-1)
 
         return torch.sign(align_y) * align_y**2
@@ -176,7 +136,7 @@ def pushing_target(env: ManagerBasedRLEnv,
     # zeta_m = torch.where(torch.norm(offset_pos - ee_pos_w, dim=-1, p=2) < 0.03 , 1, 0)
     obj_vel_rew = torch.where((target_lin_vel_w[:, 1]) > 0.05, torch.where((target_lin_vel_w[:, 1]) < 0.2, 0.5, 0), 0)
     hand_vel_rew = torch.where(ee_lin_vel_y_w > 0.05, 1.0, 0.0) - torch.where(torch.abs(ee_lin_vel_x_w) > 0.01, 0.7, 0.0)
-    reward = torch.where(distance < 0.03, 2.0, zeta_m *((1 - distance/0.15) + obj_vel_rew))
+    reward = torch.where(distance < 0.03, 2.0, zeta_m *((1 - distance/0.18) + obj_vel_rew))
 
     # print(offset_pos[:, 1] - wrist_pos_w[:, 1])
     # print(direction)

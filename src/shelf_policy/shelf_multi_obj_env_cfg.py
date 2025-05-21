@@ -92,7 +92,7 @@ class CommandsCfg:
         asset_name=MISSING,
         asset_dict=MISSING,
         object_id_dict_rev=MISSING,
-        init_pos_offset=(0.0, 0.15, 0.0),
+        init_pos_offset=(0.0, 0.18, 0.0),
         debug_vis=True,)
 
 

@@ -285,4 +285,4 @@ def rl_joint_vel_rel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     """
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
-    return asset.data.joint_vel[:, : 8] - asset.data.default_joint_vel[:, : 8]
+    return asset.data.joint_vel[:, : 6] - asset.data.default_joint_vel[:, : 6]
