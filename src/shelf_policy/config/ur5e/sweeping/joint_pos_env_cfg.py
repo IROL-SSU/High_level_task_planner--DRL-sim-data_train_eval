@@ -85,6 +85,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         # 객체 정보 및 Pose 정보 가져오기
         object_path_dict = object_cfgs["objects"]
         object_pose_dict = object_cfgs["pose"]
+        object_width_dict = object_cfgs["width"]
         object_id_dict = object_cfgs["id"]
         object_id_dict_rev = {str(v): k for k, v in object_id_dict.items()}
         # 크기(키 개수) 비교 후 에러 발생
@@ -173,15 +174,12 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         )
 
 
-
-        self.observations.policy.target_obs_state.params["object_id_dict_rev"] = object_id_dict_rev
         self.observations.policy.goal_pos.params["command_name"] = "target_goal_pos"
 
         self.events.object_spawn.params["asset_dict"] = rigid_obj_dict
         
         self.events.object_spawn.params["pose_array"] = load_and_reshape_pose(object_pose_dict)
-        self.events.object_spawn.params["object_id_dict"] = object_id_dict
-        self.events.object_spawn.params["object_id_dict_rev"] = object_id_dict_rev
+        self.events.object_spawn.params["object_width_dict"] = object_width_dict
         self.events.object_spawn.params["ceiling_height"] = 1.8
         self.events.object_spawn.params["task_mode"] = "sweeping_right"
 

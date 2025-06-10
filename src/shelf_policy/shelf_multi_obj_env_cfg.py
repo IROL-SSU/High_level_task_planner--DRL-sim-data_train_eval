@@ -60,7 +60,7 @@ class ShelfSceneCfg(InteractiveSceneCfg):
     
     shelf = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Shelf",
-        spawn=sim_utils.UsdFileCfg(usd_path=f"omniverse://localhost/Library/Shelf/Arena/speedrack.usd", mass_props=MassPropertiesCfg(mass=100), ),
+        spawn=sim_utils.UsdFileCfg(usd_path=f"omniverse://localhost/Library/Shelf/Arena/speedrack.usd", mass_props=MassPropertiesCfg(mass=100),),
         init_state=RigidObjectCfg.InitialStateCfg(pos=(-0.7, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
         debug_vis=False,
     )
@@ -74,7 +74,7 @@ class ShelfSceneCfg(InteractiveSceneCfg):
 
     #Objects
     object_collection: RigidObjectCollectionCfg = MISSING
-    # shelf_contact: ContactSensorCfg = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Shelf", update_period=0.0, history_length=1, debug_vis=False)
+    # shelf_contact: ContactSensorCfg = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/Shelf", update_period=0.0, history_length=6, debug_vis=False)
 
 
     
@@ -115,7 +115,8 @@ class ObservationsCfg:
         joint_pos = ObsTerm(func=mdp.MA_joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.MA_joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
-        target_obs_state = ObsTerm(func=mdp.MA_object_position_in_RRF, params={"object_id_dict_rev": MISSING}, noise = Unoise(n_min=-0.01, n_max=0.01))
+        target_obs_state = ObsTerm(func=mdp.MA_object_position_in_RRF, params={}, noise = Unoise(n_min=-0.01, n_max=0.01))
+        target_obj_width = ObsTerm(func=mdp.MA_object_width, noise = Unoise(n_min=-0.01, n_max=0.01))
         ee_pose = ObsTerm(func=mdp.ee_pos_r)
         goal_pos = ObsTerm(func=mdp.MA_target_goal_command, params={"command_name": MISSING})
 
@@ -134,7 +135,7 @@ class EventCfg:
 
     reset_all = EventTerm(func=mdp.reset_scene_to_default, mode="reset")
     object_spawn = EventTerm(func=mdp.randomize_scene, 
-                             params={"asset_dict": MISSING, "pose_array":MISSING, "object_id_dict": MISSING, "object_id_dict_rev": MISSING, "ceiling_height": MISSING, "task_mode": MISSING}, mode="reset")
+                             params={"asset_dict": MISSING, "pose_array":MISSING, "object_width_dict": MISSING,"ceiling_height": MISSING, "task_mode": MISSING}, mode="reset")
 
 
 
@@ -184,7 +185,7 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING})
     shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=False, params={"threshold": 0.1})
-    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.8})
+    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.6})
     # success_sweep = DoneTerm(func=mdp.success_sweeping, time_out=False, params= {"command_name": "target_goal_pos", "sweeping_threshold": 0.02, "homing_threshold": 0.6})
 
 
@@ -229,9 +230,9 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self):
         """Post initialization."""
         # general settings
-        self.decimation = 2
+        self.decimation = 6
         self.episode_length_s = 11.0
-
+        self.sim.render_interval = 2
         # simulation settings
         self.sim.dt = 1.0 / 60.0  # 100Hz
 

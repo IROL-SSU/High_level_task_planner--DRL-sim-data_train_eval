@@ -101,9 +101,20 @@ def drop_object_termination(env: ManagerBasedRLEnv,
 
 def shelf_collision_termination(env: ManagerBasedRLEnv,
                                 shelf_cfg: SceneEntityCfg = SceneEntityCfg("shelf"),
+                                finger_frame_cfg: SceneEntityCfg = SceneEntityCfg("finger_frame"),
+                                wrist_frame_cfg: SceneEntityCfg = SceneEntityCfg("wrist_frame"),
                                 threshold: float = MISSING):
     
     shelf: RigidObject = env.scene[shelf_cfg.name]
+    finger: FrameTransformer = env.scene[finger_frame_cfg.name]
+    wrist: FrameTransformer = env.scene[wrist_frame_cfg.name]
+    shelf_pos_w = shelf.data.root_pos_w .clone()
+    shelf_pos_w[:,2] = shelf_pos_w[:, 2] + 1.05
+    
+    
+    dst_l_shelf = finger.data.target_pos_w[..., 0, 2] - (shelf_pos_w[:,2])
+    dst_r_shelf = finger.data.target_pos_w[..., 1, 2] - (shelf_pos_w[:,2])
+    dst_wrist_shelf = wrist.data.target_pos_w[..., 0, 2] - (shelf_pos_w[:,2])
     # shelf_contact: ContactSensor = env.scene[shelf_contact_cfg.name]
 
 
@@ -111,7 +122,7 @@ def shelf_collision_termination(env: ManagerBasedRLEnv,
     shelf_vel = shelf.data.root_vel_w
     shelf_vel.sum()
 
-    termination = (torch.norm(shelf_vel , dim=-1, p=2)> threshold) 
+    termination = (torch.norm(shelf_vel , dim=-1, p=2)> threshold) | (dst_l_shelf < 0.01) | (dst_r_shelf < 0.01) | (dst_wrist_shelf < 0.07)
     
 
     # print(shelf_contact.data.net_forces_w[:,0, 2])
@@ -123,7 +134,7 @@ def hand_velocity_termination(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg 
     #ee lin vel
     ee_lin_vel_w = robot.data.body_state_w[:, 12,7:10].clone()
     ee_ang_vel_w = robot.data.body_state_w[:, 12, 10:13].clone()
-    termination = (torch.norm(ee_lin_vel_w, dim=-1, p=2) > threshold) #|  (torch.norm(ee_ang_vel_w, dim=-1, p=2) > 2.5)
+    termination = (torch.norm(ee_lin_vel_w, dim=-1, p=2) > threshold) |  (torch.norm(ee_ang_vel_w, dim=-1, p=2) > 2.0)
 
     return termination
 

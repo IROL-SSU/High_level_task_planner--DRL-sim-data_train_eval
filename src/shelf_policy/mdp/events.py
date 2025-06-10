@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from omni.isaac.lab.assets import RigidObject, RigidObjectCollection
 from omni.isaac.lab.managers import SceneEntityCfg
-from omni.isaac.lab.utils.math import subtract_frame_transforms
+from omni.isaac.lab.utils.math import subtract_frame_transforms, random_yaw_orientation
 from omni.isaac.lab.sensors import FrameTransformerData
 
 from omni.isaac.lab.managers import EventTermCfg, ManagerTermBase, SceneEntityCfg
@@ -27,8 +27,7 @@ def randomize_scene(
     env_ids: torch.Tensor,
     pose_array: tuple,
     asset_dict: dict = MISSING,
-    object_id_dict: dict = MISSING,
-    object_id_dict_rev: dict = MISSING,
+    object_width_dict: dict = MISSING,
     object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
     ceiling_height: int = MISSING,
     task_mode: str = MISSING
@@ -39,16 +38,18 @@ def randomize_scene(
 
 
     if task_mode == "grasping":
-        target_object_name = choice(["cup_1", "bottle_1", "cup_3", "can_1"])
+        target_object_name = choice(["cup_1", "bottle_1", "can_1"])
         
     elif task_mode == "sweeping_right":
         target_object_name = choice(list(asset_dict.keys()))
 
 
     target_object_id = object_collection.find_objects(name_keys=target_object_name)
-
+    target_width = torch.tensor(object_width_dict[target_object_name], dtype=torch.float32, device=env.device)
     env.target_id[env_ids, 0] = target_object_id[0].to(env.target_id.dtype)
-
+    env.target_width[env_ids, 0] = target_width
+    
+    
     asset_keys_list: list = list(asset_dict.keys())
 
     pose_array_tensor = torch.tensor(pose_array, device=env.device)
@@ -66,8 +67,10 @@ def randomize_scene(
             target_index = index
 
         pose_instance = pose_array_tensor[0, index // cols, index % cols]
+        position_uncertainty = torch.empty(2, device=env.device).uniform_(-0.03, 0.03)
         positions = pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
-
+        positions[:,:2] = positions[:,:2] + position_uncertainty
+        orientations[:, :] = random_yaw_orientation(num=len(env_ids), device=env.device)
         object_ids = object_collection.find_objects(name_keys=asset_name)
 
         object_collection.write_object_link_state_to_sim(

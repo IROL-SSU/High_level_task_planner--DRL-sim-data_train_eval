@@ -26,7 +26,8 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
 
     # Get the target IDs directly from the environment tensor
     target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
-
+    target_width = env.target_width
+    
     # Get the world state(position, orientation, linear velocity, angular velocity); R^13
     target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids].clone()
     ee_pos_w = ee.data.target_pos_w.clone()
@@ -34,7 +35,7 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
 
     offset_pos = target_pos_w.clone()
     offset_pos[:, 0] = offset_pos[:, 0] 
-    offset_pos[:, 1] = offset_pos[:, 1] - 0.07
+    offset_pos[:, 1] = offset_pos[:, 1] - target_width[:, 0]
     offset_pos[:, 2] = offset_pos[:, 2] + 0.09
 
     distance = torch.norm((offset_pos[:, :3] - ee_pos_w[..., 0,:3]), dim=-1, p=2)
@@ -42,6 +43,8 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
     # print(f"object: {offset_pos}")
     # print(f"hand: {ee_pos_w}")
     # print(f"distance: {distance}")
+    # print(f"target_id: {target_ids}")
+    
 
     alpha = -10.0 
     reward = torch.exp(alpha * distance)
@@ -118,6 +121,7 @@ def pushing_target(env: ManagerBasedRLEnv,
     des_pos_w = command[:, :3]
     # Get the target IDs directly from the environment tensor
     target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
+    target_width = env.target_width
 
     # Get the world state(position, orientation, linear velocity, angular velocity); R^13
     target_pos_w = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids]
@@ -128,14 +132,14 @@ def pushing_target(env: ManagerBasedRLEnv,
 
     offset_pos = target_pos_w.clone()
     offset_pos[:, 0] = offset_pos[:, 0] 
-    offset_pos[:, 1] = offset_pos[:, 1] - 0.07
+    offset_pos[:, 1] = offset_pos[:, 1] - target_width[:, 0]
     offset_pos[:, 2] = offset_pos[:, 2] + 0.09
 
     distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
-    zeta_m = torch.where((torch.norm(offset_pos - ee_pos_w, dim=-1, p=2)) < 0.03 , torch.where(torch.abs(offset_pos[:, 1] - wrist_pos_w[:, 1])<0.03, 1, 0), 0)
+    zeta_m = torch.where((torch.norm(offset_pos - ee_pos_w, dim=-1, p=2)) < 0.05 , torch.where(torch.abs(offset_pos[:, 1] - wrist_pos_w[:, 1])<0.03, 1, 0), 0)
     # zeta_m = torch.where(torch.norm(offset_pos - ee_pos_w, dim=-1, p=2) < 0.03 , 1, 0)
     obj_vel_rew = torch.where((target_lin_vel_w[:, 1]) > 0.05, torch.where((target_lin_vel_w[:, 1]) < 0.2, 0.5, 0), 0)
-    hand_vel_rew = torch.where(ee_lin_vel_y_w > 0.05, 1.0, 0.0) - torch.where(torch.abs(ee_lin_vel_x_w) > 0.01, 0.7, 0.0)
+    # hand_vel_rew = torch.where(ee_lin_vel_y_w > 0.05, 1.0, 0.0) - torch.where(torch.abs(ee_lin_vel_x_w) > 0.01, 0.7, 0.0)
     reward = torch.where(distance < 0.03, 2.0, zeta_m *((1 - distance/0.18) + obj_vel_rew))
 
     # print(offset_pos[:, 1] - wrist_pos_w[:, 1])
@@ -201,7 +205,7 @@ def homing_reward(env: ManagerBasedRLEnv,
     des_pos_w = command[:, :3]
     distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
     # distance_sub = torch.norm((subgoal_pos[:, :3] - ee_pos_w[..., 0,:3]), dim=-1, p=2)
-    joint_pos_error = torch.sum(torch.abs(robot.data.joint_pos[:, : 6] - robot.data.default_joint_pos[:, :6]), dim=1)
+    joint_pos_error = torch.sum(torch.abs(robot.data.joint_pos[:, : 5] - robot.data.default_joint_pos[:, :5]), dim=1)
     # reward_for_home_pose = torch.exp(-1.2 * distance_sub)
     
     # print(f"joint error: {joint_pos_error}")

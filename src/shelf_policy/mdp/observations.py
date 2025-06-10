@@ -72,7 +72,6 @@ def MA_object_position_in_RRF(
         env: ManagerBasedRLEnv,
         robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
         object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),
-        object_id_dict_rev: dict = MISSING,
 )-> torch.Tensor:
     """
         The position of the target object in the robot's root frame.
@@ -94,9 +93,10 @@ def MA_object_position_in_RRF(
         robot.data.root_state_w[:, 3:7], # Robot's orientation in the world frame (quaternion) 
         target_state_w[:, :3] # Target object's position in the world frame
     )
-
-
     return object_pos_b
+
+def MA_object_width(env: ManagerBasedRLEnv,) -> torch.Tensor:
+    return env.target_width
 
 def MA_target_goal_command(
         env: ManagerBasedRLEnv, 
