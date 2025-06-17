@@ -15,9 +15,9 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
 @configclass
 class UR5eSweepingRunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 6000
+    max_iterations = 50000
     save_interval = 50
-    experiment_name = "UR5e_shelf_sweep_vel"
+    experiment_name = "UR5e_shelf_sweep_incremental"
     empirical_normalization = False
     seed = 0
     policy = RslRlPpoActorCriticCfg(
@@ -35,8 +35,10 @@ class UR5eSweepingRunnerCfg(RslRlOnPolicyRunnerCfg):
         num_mini_batches=4,
         learning_rate=1.0e-3,
         schedule="adaptive",
-        gamma=0.97,
+        gamma=0.96,
         lam=0.95,
         desired_kl=0.01,
         max_grad_norm=1.0,
     )
+    
+    # clip_actions = 0.01

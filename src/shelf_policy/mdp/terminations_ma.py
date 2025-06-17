@@ -121,7 +121,7 @@ def shelf_collision_termination(env: ManagerBasedRLEnv,
     # print(contact_sensor.data.net_forces_w)
     shelf_vel = shelf.data.root_vel_w
     shelf_vel.sum()
-
+    
     termination = (torch.norm(shelf_vel , dim=-1, p=2)> threshold) | (dst_l_shelf < 0.01) | (dst_r_shelf < 0.01) | (dst_wrist_shelf < 0.07)
     
 
@@ -137,6 +137,7 @@ def hand_velocity_termination(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg 
     termination = (torch.norm(ee_lin_vel_w, dim=-1, p=2) > threshold) |  (torch.norm(ee_ang_vel_w, dim=-1, p=2) > 2.0)
 
     return termination
+
 
 
 

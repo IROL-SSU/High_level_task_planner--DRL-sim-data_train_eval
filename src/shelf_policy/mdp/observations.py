@@ -65,7 +65,8 @@ def MA_joint_vel_rel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     """
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
-    return asset.data.joint_vel[:, :8] - asset.data.default_joint_vel[:, :8]
+    # print(f"joint velocity: {asset.data.joint_vel[:, :6]}")
+    return asset.data.joint_vel[:, :6] - asset.data.default_joint_vel[:, :6]
     
 
 def MA_object_position_in_RRF(
@@ -142,7 +143,6 @@ def target_position_in_robot_root_frame(
     object_pos_b, _ = subtract_frame_transforms(
         robot.data.root_state_w[:, :3], robot.data.root_state_w[:, 3:7], object_pos_w
     )
-    
     return object_pos_b
 
 def object_pose_in_robot_root_frame(
@@ -200,11 +200,7 @@ def ee_pos_r(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Ten
 
     ee_quat_b = quat_unique(ee_quat_b) if make_quat_unique else ee_quat
 
-    # print(f"ee_pos_w: {ee_tf_data.target_pos_w[..., 0, :]}")
-    # print(f"ee_pos_r: {ee_pos_b}")
-    # print(f"ee_quat_b: {ee_quat_b}")
-
-    # print(torch.cat((ee_pos_b, ee_quat_b), dim=-1))
+    ee_lin_vel_w = robot.data.body_state_w[:, 12,7:10].clone()
 
     return torch.cat((ee_pos_b, ee_quat_b), dim=-1)
 

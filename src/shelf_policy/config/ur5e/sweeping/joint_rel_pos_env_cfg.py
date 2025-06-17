@@ -37,7 +37,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
 
         # Set actions for the specific robot type (franka)
         # Set actions for the specific robot type
-        self.actions.arm_action = mdp.JointVelocityActionCfg(
+        self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
             asset_name="robot", 
             joint_names=["shoulder_pan_joint",
                         "shoulder_lift_joint",
@@ -45,19 +45,34 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
                         "wrist_1_joint",
                         "wrist_2_joint",
                         "wrist_3_joint"], 
-            scale=1.0,
-            use_default_offset=True
+            scale=0.5,
         )
-        self.actions.gripper_action = mdp.BinaryJointVelocityActionCfg(
+        self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot",
             joint_names=["finger_joint",
-                         "right_outer_knuckle_joint",],
-            open_command_expr={"finger_joint": -0.5, 
-                               "right_outer_knuckle_joint": -0.5,
-},
+                         "right_outer_knuckle_joint",
+                         "left_outer_finger_joint",
+                         "left_inner_finger_knuckle_joint",
+                         "left_inner_finger_joint",  
+                         "right_outer_finger_joint", 
+                         "right_inner_finger_joint", 
+                         "right_inner_finger_knuckle_joint"],
+            open_command_expr={"finger_joint": 0.0, 
+                               "right_outer_knuckle_joint": 0.0,
+                               "left_inner_finger_knuckle_joint": 0.0,
+                               "left_inner_finger_joint": 0.0, 
+                               "left_outer_finger_joint": 0.0,
+                               "right_outer_finger_joint": 0.0,
+                               "right_inner_finger_joint": 0.0,
+                               "right_inner_finger_knuckle_joint": 0.0},
             close_command_expr={"finger_joint": 0.5, 
                                 "right_outer_knuckle_joint": 0.5,
-},
+                                "left_inner_finger_knuckle_joint": -0.5,
+                                "left_inner_finger_joint": -0.5, 
+                                "left_outer_finger_joint": 0.0,
+                                "right_outer_finger_joint": 0.0,
+                                "right_inner_finger_joint": 0.5,
+                                "right_inner_finger_knuckle_joint": -0.5},
         )
 
 
@@ -69,6 +84,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
         # 객체 정보 및 Pose 정보 가져오기
         object_path_dict = object_cfgs["objects"]
         object_pose_dict = object_cfgs["pose"]
+        object_width_dict = object_cfgs["width"]
         object_id_dict = object_cfgs["id"]
         object_id_dict_rev = {str(v): k for k, v in object_id_dict.items()}
         # 크기(키 개수) 비교 후 에러 발생
@@ -89,7 +105,7 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
                                                                             max_depenetration_velocity=5.0,
                                                                             disable_gravity=False,
                                                                         ),
-                                                                        mass_props=MassPropertiesCfg(mass=0.3),
+                                                                        mass_props=MassPropertiesCfg(mass=0.5),
                                                                     ),
                                                                 )
             
@@ -156,26 +172,19 @@ class UR5eShelfEnvCfg(ShelfEnvCfg):
             ],
         )
 
-        # asset dict
-        # asset_dict: dict = {"objects": ["target", "cup2", "cup3"]}
 
-
-        self.observations.policy.target_obs_state.params["object_id_dict_rev"] = object_id_dict_rev
         self.observations.policy.goal_pos.params["command_name"] = "target_goal_pos"
 
         self.events.object_spawn.params["asset_dict"] = rigid_obj_dict
         
         self.events.object_spawn.params["pose_array"] = load_and_reshape_pose(object_pose_dict)
-        self.events.object_spawn.params["object_id_dict"] = object_id_dict
-        self.events.object_spawn.params["object_id_dict_rev"] = object_id_dict_rev
+        self.events.object_spawn.params["object_width_dict"] = object_width_dict
         self.events.object_spawn.params["ceiling_height"] = 1.8
         self.events.object_spawn.params["task_mode"] = "sweeping_right"
 
         self.commands.target_goal_pos.asset_dict = rigid_obj_dict
         self.commands.target_goal_pos.object_id_dict_rev = object_id_dict_rev
         self.commands.target_goal_pos.asset_name = "object_collection"
-
-        self.rewards.reaching.params["object_id_dict_rev"] = object_id_dict_rev
 
         self.terminations.object_drop.params["height_condition"] = 1.04
         self.terminations.object_drop.params["rotation_condition"] = 0.9

@@ -185,7 +185,8 @@ class TerminationsCfg:
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING})
     shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=False, params={"threshold": 0.1})
-    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.6})
+    # joint_vel_limit = DoneTerm(func=mdp.joint_velocity_out_of_manual_limit, time_out=False, params={"max_velocity": 0.2})
+    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.4})
     # success_sweep = DoneTerm(func=mdp.success_sweeping, time_out=False, params= {"command_name": "target_goal_pos", "sweeping_threshold": 0.02, "homing_threshold": 0.6})
 
 
@@ -196,11 +197,11 @@ class CurriculumCfg:
 
     # sweeping = CurrTerm(func=mdp.modify_reward_weight, params={"term_name": "sweeping_object", "weight": 6.0, "num_steps": 10000})
     # action_rate = CurrTerm(
-    #     func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.1, "num_steps": 10000}
+    #     func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.3, "num_steps": 100000}
     # )
 
     # joint_vel = CurrTerm(
-    #     func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.1, "num_steps": 10000}
+    #     func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.3, "num_steps": 100000}
     # )
 
 
