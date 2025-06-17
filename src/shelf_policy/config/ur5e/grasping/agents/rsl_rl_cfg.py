@@ -15,7 +15,7 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
 @configclass
 class ShelfGraspPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 15000
+    max_iterations = 30000
     save_interval = 50
     seed = 0
     experiment_name = "UR5e_shelf_grasp"

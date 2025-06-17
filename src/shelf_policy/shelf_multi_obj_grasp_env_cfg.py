@@ -171,7 +171,7 @@ class RewardsCfg:
     )
     align_ee = RewTerm(func=mdp.rewards_grasp_ur5e.align_ee_target, params={}, weight=2.0)
     # align_grasp_around_handle = RewTerm(func=mdp.rewards_grasp_ur5e.align_grasp_around_target, weight=0.5)
-    grasp_object = RewTerm(func=mdp.rewards_grasp_ur5e.grasp_object, weight=5.0, params={"threshold": 0.03, "open_joint_pos": MISSING, "asset_cfg":SceneEntityCfg("robot", joint_names=MISSING)},)
+    grasp_object = RewTerm(func=mdp.rewards_grasp_ur5e.grasp_object, weight=5.0, params={"threshold": 0.02, "open_joint_pos": MISSING, "asset_cfg":SceneEntityCfg("robot", joint_names=MISSING)},)
     lifting_object = RewTerm(func=mdp.rewards_grasp_ur5e.object_lift, params={"threshold": 1.07}, weight=7.0)
     homing_after_grasp = RewTerm(func=mdp.rewards_grasp_ur5e.homing_reward, 
                                  params={"gripper_cfg": SceneEntityCfg("robot", joint_names=MISSING)}, weight=12.0)
@@ -231,7 +231,7 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self):
         """Post initialization."""
         # general settings
-        self.decimation = 2
+        self.decimation = 6
         self.episode_length_s = 8.0
 
         # simulation settings

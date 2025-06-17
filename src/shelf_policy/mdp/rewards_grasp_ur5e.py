@@ -36,7 +36,7 @@ def reward_for_hand_reaching(env: ManagerBasedRLEnv,
     offset_pos = target_pos_w.clone()
     offset_pos[:, 0] = offset_pos[:, 0] 
     offset_pos[:, 1] = offset_pos[:, 1] 
-    offset_pos[:, 2] = offset_pos[:, 2] + 0.06
+    offset_pos[:, 2] = offset_pos[:, 2] + 0.07
 
     distance = torch.norm((offset_pos[:, :3] - ee_pos_w[..., 0,:3]), dim=-1, p=2)
 
@@ -112,11 +112,14 @@ def grasp_object(
     object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),) -> torch.Tensor:
 
     object_collection: RigidObjectCollection = env.scene[object_collection_cfg.name]
+    wrist_frame_cfg = SceneEntityCfg("wrist_frame")
+    wrist: FrameTransformer = env.scene[wrist_frame_cfg.name]
 
     # Get the target IDs directly from the environment tensor
     target_ids = env.target_id.squeeze(-1).long()  # Shape: (num_envs,)
 
-    ee_tcp_pos = env.scene["ee_frame"].data.target_pos_w[..., 0, :]
+    ee_tcp_pos = env.scene["ee_frame"].data.target_pos_w[..., 0, :].clone()
+    wrist_pos_w = wrist.data.target_pos_w[..., 0, :].clone()
     offset_pos = object_collection.data.object_pos_w[torch.arange(env.scene.num_envs), target_ids].clone()
 
     gripper_joint_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
@@ -125,12 +128,14 @@ def grasp_object(
     
     offset_pos[:,0] = offset_pos[:, 0] 
     offset_pos[:,1] = offset_pos[:, 1] 
-    offset_pos[:,2] = offset_pos[:, 2] + 0.06
+    offset_pos[:,2] = offset_pos[:, 2] + 0.07
     
-    distance = torch.norm(offset_pos - ee_tcp_pos, dim=-1, p=2)
-
+    distance = torch.norm(offset_pos - ee_tcp_pos, dim=-1, p=2) 
+    # is_close = torch.where((torch.norm(offset_pos - ee_tcp_pos, dim=-1, p=2)) < 0.03 , torch.where(torch.abs(offset_pos[:, 1] - wrist_pos_w[:, 1])<0.03, 1, 0), 0)
     is_close = distance <= threshold
     reward = is_close * torch.sum(gripper_joint_pos - open_joint_pos, dim=-1)
+
+    # print(distance)
     # reward = torch.where(distance < threshold, torch.sum(gripper_joint_pos - open_joint_pos, dim=-1), torch.sum(open_joint_pos - gripper_joint_pos, dim=-1))
     return reward
 
@@ -186,7 +191,7 @@ def homing_reward(env: ManagerBasedRLEnv,
     # print(f"gripper_joint: {torch.sum(gripper_joint_pos, dim=-1)}")
     # print(f"distance: {distance}")
     
-    return torch.where(torch.sum(gripper_joint_pos, dim=-1) > 0.4,  (offset_pos[:, 2] > 1.13)*reward_for_home_pose, 0)
+    return torch.where(torch.sum(gripper_joint_pos, dim=-1) > 0.2,  (offset_pos[:, 2] > 1.13)*reward_for_home_pose, 0)
 
 def object_collision(env: ManagerBasedRLEnv,
                 object_collection_cfg: SceneEntityCfg = SceneEntityCfg("object_collection"),)-> torch.Tensor:
