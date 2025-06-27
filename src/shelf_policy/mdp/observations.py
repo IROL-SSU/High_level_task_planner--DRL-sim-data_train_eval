@@ -94,6 +94,7 @@ def MA_object_position_in_RRF(
         robot.data.root_state_w[:, 3:7], # Robot's orientation in the world frame (quaternion) 
         target_state_w[:, :3] # Target object's position in the world frame
     )
+    # print(f"object: {object_pos_b}")
     return object_pos_b
 
 def MA_object_width(env: ManagerBasedRLEnv,) -> torch.Tensor:
@@ -112,6 +113,7 @@ def MA_target_goal_command(
         robot.data.root_state_w[:, :3], robot.data.root_state_w[:, 3:7], des_pos_w
     )
     
+    # print(f"goal: {des_pos_b}")
     return des_pos_b
     
     
@@ -201,7 +203,8 @@ def ee_pos_r(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Ten
     ee_quat_b = quat_unique(ee_quat_b) if make_quat_unique else ee_quat
 
     ee_lin_vel_w = robot.data.body_state_w[:, 12,7:10].clone()
-
+    
+    # print(torch.cat((ee_pos_b, ee_quat_b), dim=-1))
     return torch.cat((ee_pos_b, ee_quat_b), dim=-1)
 
 def ee_quat(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Tensor:

@@ -41,4 +41,4 @@ class UR5eSweepingRunnerCfg(RslRlOnPolicyRunnerCfg):
         max_grad_norm=1.0,
     )
     
-    # clip_actions = 0.01
+    clip_actions = 0.1
