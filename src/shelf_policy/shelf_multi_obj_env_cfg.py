@@ -186,7 +186,7 @@ class TerminationsCfg:
     object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING})
     shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=False, params={"threshold": 0.1})
     # joint_vel_limit = DoneTerm(func=mdp.joint_velocity_out_of_manual_limit, time_out=False, params={"max_velocity": 0.2})
-    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.4})
+    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.3})
     # success_sweep = DoneTerm(func=mdp.success_sweeping, time_out=False, params= {"command_name": "target_goal_pos", "sweeping_threshold": 0.02, "homing_threshold": 0.6})
 
 
@@ -231,7 +231,7 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self):
         """Post initialization."""
         # general settings
-        self.decimation = 10
+        self.decimation = 2
         self.episode_length_s = 5.0 #11.0
         self.sim.render_interval = 2
         # simulation settings
