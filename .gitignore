@@ -354,3 +354,4 @@ _build
 *.bmp
 *.obj
 *.usd
+*.csv

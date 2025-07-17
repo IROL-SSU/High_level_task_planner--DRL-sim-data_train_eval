@@ -55,6 +55,7 @@ def MA_joint_pos_rel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEn
     """
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
+    # print(f"joint: {asset.data.joint_pos[:, :6]}")
     return asset.data.joint_pos[:, :8] - asset.data.default_joint_pos[:, :8]
 
 
@@ -201,10 +202,8 @@ def ee_pos_r(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Ten
     )
 
     ee_quat_b = quat_unique(ee_quat_b) if make_quat_unique else ee_quat
-
-    ee_lin_vel_w = robot.data.body_state_w[:, 12,7:10].clone()
     
-    # print(torch.cat((ee_pos_b, ee_quat_b), dim=-1))
+    # print(ee_pos_b)
     return torch.cat((ee_pos_b, ee_quat_b), dim=-1)
 
 def ee_quat(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Tensor:

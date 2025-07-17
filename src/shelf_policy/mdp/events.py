@@ -69,7 +69,7 @@ def randomize_scene(
         pose_instance = pose_array_tensor[0, index // cols, index % cols]
         position_uncertainty = torch.empty(2, device=env.device).uniform_(-0.02, 0.02)
         positions = pose_instance[:3] + env.scene.env_origins[env_ids, 0:3]
-        positions[:,:2] = positions[:,:2] + position_uncertainty
+        positions[:,:2] = positions[:,:2] #+ position_uncertainty
         orientations[:, :] = random_yaw_orientation(num=len(env_ids), device=env.device)
         object_ids = object_collection.find_objects(name_keys=asset_name)
 

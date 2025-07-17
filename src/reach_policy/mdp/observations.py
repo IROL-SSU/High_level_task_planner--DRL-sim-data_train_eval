@@ -25,8 +25,29 @@ def ee_pose_b(env: ManagerBasedRLEnv) -> torch.Tensor:
     ee_pos_b, ee_quat_b = subtract_frame_transforms(
         robot.data.root_state_w[:, :3], robot.data.root_state_w[:, 3:7], ee_pos_w, ee_quat_w
     )
-
+    
     # print(f"position: {ee_pos_b}")
     # print(f"orientation: {ee_quat_b}")
     # print(f"robot_joint_vel: {robot.data.joint_vel}")
     return  torch.concat((ee_pos_b, ee_quat_b), dim=1)
+
+def MA_joint_pos_rel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """The joint positions of the asset w.r.t. the default joint positions.
+
+    Note: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their positions returned.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    # print(f"joint: {asset.data.joint_pos[:, :6]}")
+    return asset.data.joint_pos[:, :8] - asset.data.default_joint_pos[:, :8]
+
+
+def MA_joint_vel_rel(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")):
+    """The joint velocities of the asset w.r.t. the default joint velocities.
+
+    Note: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their velocities returned.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    # print(f"joint velocity: {asset.data.joint_vel[:, :6]}")
+    return asset.data.joint_vel[:, :6] - asset.data.default_joint_vel[:, :6]

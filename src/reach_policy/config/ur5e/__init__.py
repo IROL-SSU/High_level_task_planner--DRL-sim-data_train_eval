@@ -6,7 +6,7 @@
 import gymnasium as gym
 import os
 
-from . import agents, joint_vel_env_cfg
+from . import agents, joint_pos_env_cfg
 
 ##
 # Register Gym environments.
@@ -18,10 +18,10 @@ from . import agents, joint_vel_env_cfg
 
 
 gym.register(
-    id="Isaac-UR5e-Reach-Vel-v0",
+    id="Isaac-UR5e-Reach-Pos-v0",
     entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
     kwargs={
-        "env_cfg_entry_point": joint_vel_env_cfg.UR5eReachEnvCfg,
+        "env_cfg_entry_point": joint_pos_env_cfg.UR5eReachEnvCfg,
        "rsl_rl_cfg_entry_point": agents.rsl_rl_cfg.UR5eReachPPORunnerCfg,
     },
     disable_env_checker=True,

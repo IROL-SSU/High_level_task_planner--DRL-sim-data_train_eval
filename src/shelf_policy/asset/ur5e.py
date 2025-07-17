@@ -34,11 +34,11 @@ UR5e_CFG = ArticulationCfg(
         rot=(0.0, 0.0, 0.0, 1.0),
         joint_pos={
             "shoulder_pan_joint": 0.0,  # -1.7540559 / -1.6
-            "shoulder_lift_joint": -2.0,  # -1.27409 / -1.9
-            "elbow_joint": 2.0,  # 1.3439 / 1.9
+            "shoulder_lift_joint": -2.2,  # -1.27409 / -1.9
+            "elbow_joint": 2.2,  # 1.3439 / 1.9
             "wrist_1_joint": 0.0,  # 0.0
             "wrist_2_joint": 1.57,  # 1.5708 / 1.57
-            "wrist_3_joint": 0.0,  # 1.5708 / 2.1
+            "wrist_3_joint": 0.785,  # 1.5708 / 2.1
         },
     ),
     actuators={
@@ -53,8 +53,8 @@ UR5e_CFG = ArticulationCfg(
             ],
             velocity_limit=100.0,
             effort_limit=87.0,
-            stiffness=800.0,
-            damping=40.0,
+            stiffness=261.0,
+            damping=26.1,
         ),
     },
 )

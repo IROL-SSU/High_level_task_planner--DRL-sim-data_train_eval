@@ -53,6 +53,12 @@ class ReachSceneCfg(InteractiveSceneCfg):
         ),
         init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, 0.79505), rot=(1.0, 0.0, 0.0, 0.0),),
     )
+    # shelf = RigidObjectCfg(
+    #     prim_path="{ENV_REGEX_NS}/Shelf",
+    #     spawn=sim_utils.UsdFileCfg(usd_path=f"omniverse://localhost/Library/Shelf/Arena/speedrack.usd", mass_props=MassPropertiesCfg(mass=100),),
+    #     init_state=RigidObjectCfg.InitialStateCfg(pos=(-0.7, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0)),
+    #     debug_vis=False,
+    # )
     # robots
     robot: ArticulationCfg = MISSING
     # end-effector sensor: will be populated by agent env cfg
@@ -73,15 +79,15 @@ class CommandsCfg:
     ee_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name=MISSING,
-        resampling_time_range=(4.0, 4.0),
+        resampling_time_range=(5.0, 5.0),
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.3, 0.5),
+            pos_x=(0.6, 0.75),
             pos_y=(-0.2, 0.2),
-            pos_z=(0.3, 0.5),
+            pos_z=(0.3, 0.4),
             roll=(0.0, 0.0),
             pitch=MISSING,  # depends on end-effector axis
-            yaw=(-3.14, 3.14),
+            yaw=(0.0, 0.0),
         ),
     )
     
@@ -100,8 +106,8 @@ class ObservationsCfg:
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
         # observation terms (order preserved)
-        joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_pos = ObsTerm(func=mdp.MA_joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel = ObsTerm(func=mdp.MA_joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         ee_pose = ObsTerm(func=mdp.ee_pose_b)
         pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
         actions = ObsTerm(func=mdp.last_action)
@@ -126,13 +132,35 @@ class RewardsCfg:
 
     # task terms
     reaching_object = RewTerm(func=mdp.rewards.reaching_rew, params={"command_name": "ee_pose"}, weight=2.0)
-    align_ee = RewTerm(func=mdp.rewards.orientation_command_error, params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "command_name": "ee_pose"}, weight=-0.1)
+    align_ee = RewTerm(func=mdp.rewards.align_ee_target, params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "command_name": "ee_pose"}, weight=2.0)
     
+    # task terms
+    # end_effector_position_tracking = RewTerm(
+    #     func=mdp.position_command_error,
+    #     weight=-0.2,
+    #     params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "command_name": "ee_pose"},
+    # )
+    # end_effector_position_tracking_fine_grained = RewTerm(
+    #     func=mdp.position_command_error_tanh,
+    #     weight=0.1,
+    #     params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "std": 0.1, "command_name": "ee_pose"},
+    # )
+    # end_effector_orientation_tracking = RewTerm(
+    #     func=mdp.orientation_command_error,
+    #     weight=-0.1,
+    #     params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "command_name": "ee_pose"},
+    # )
+
     # action penalty
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-1e-4)
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.0001)
     joint_vel = RewTerm(
         func=mdp.joint_vel_l2,
-        weight=-1e-4,
+        weight=-0.0001,
+        params={"asset_cfg": SceneEntityCfg("robot")},
+    )
+    joint_acc = RewTerm(
+        func=mdp.joint_acc_penalty,
+        weight=-0.0001,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
     
@@ -140,19 +168,24 @@ class RewardsCfg:
 class TerminationsCfg:
     """Termination terms for the MDP."""
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-
+    # shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=False, params={"threshold": 0.1})
+    # hand_velocity = DoneTerm(func=mdp.joint_veloict_termination, time_out=False, params={"threshold": 0.5})
 
 @configclass
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.005, "num_steps": 4500}
+        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.05, "num_steps": 4500}
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.001, "num_steps": 4500}
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.05, "num_steps": 4500}
     )
+
+    # joint_acc = CurrTerm(
+    #     func=mdp.modify_reward_weight, params={"term_name": "joint_acc", "weight": -0.001, "num_steps": 4500}
+    # )
 
 ##
 # Environment configuration
@@ -177,8 +210,8 @@ class ReachEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self):
         """Post initialization."""
         # general settings
-        self.decimation = 1
-        self.episode_length_s = 5.0
+        self.decimation = 2
+        self.episode_length_s = 10.0
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
 

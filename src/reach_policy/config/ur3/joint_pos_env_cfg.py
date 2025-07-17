@@ -76,6 +76,10 @@ class UR3ReachEnvCfg(ReachEnvCfg):
             ],
         )
         
+
+        # self.rewards.end_effector_position_tracking.params["asset_cfg"].body_names = ["tool0"]
+        # self.rewards.end_effector_position_tracking_fine_grained.params["asset_cfg"].body_names = ["tool0"]
+        # self.rewards.end_effector_orientation_tracking.params["asset_cfg"].body_names = ["tool0"]
         self.rewards.align_ee.params["asset_cfg"].body_names = ["tool0"]
 
         self.commands.ee_pose.body_name = "tool0"

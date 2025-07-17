@@ -23,7 +23,7 @@ from omni.isaac.lab.assets.articulation import ArticulationCfg
 
 UR3_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"omniverse://localhost/Library/Shelf/Robots/UR3/ur3.usd",
+        usd_path=f"omniverse://localhost/Library/Shelf/Robots/UR3/ur3_ver2.usd",
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,

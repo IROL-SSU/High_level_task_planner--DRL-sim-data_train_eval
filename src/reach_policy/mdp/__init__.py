@@ -7,6 +7,7 @@
 
 from omni.isaac.lab.envs.mdp import *  # noqa: F401, F403
 
-from .observations import *
-from .terminations import *
+from .terminations_reach import *
 from .rewards import *
+
+from .observations import *
