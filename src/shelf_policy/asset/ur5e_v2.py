@@ -96,15 +96,15 @@ UR5e_CFG = ArticulationCfg(
             stiffness={
                 "shoulder_pan_joint": 261.0,
                 "shoulder_lift_joint": 261.0,
-                "elbow_joint": 800.0,
+                "elbow_joint": 500.0,
                 "wrist_1_joint":261.0,
                 "wrist_2_joint":261.0,
                 "wrist_3_joint":261.0,
             },
             damping={
                 "shoulder_pan_joint": 26.1,
-                "shoulder_lift_joint": 40.0,
-                "elbow_joint": 40.0,
+                "shoulder_lift_joint": 26.1,
+                "elbow_joint": 26.1,
                 "wrist_1_joint":26.1,
                 "wrist_2_joint":26.1,
                 "wrist_3_joint":26.1,

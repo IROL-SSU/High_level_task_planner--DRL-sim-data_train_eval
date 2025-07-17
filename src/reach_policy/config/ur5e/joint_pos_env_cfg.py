@@ -24,7 +24,6 @@ import math
 ##
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 from shelf_policy.asset.ur5e_v2 import UR5e_CFG
-from omni.isaac.lab_assets import UR10_CFG
 
 
 @configclass
@@ -97,6 +96,16 @@ class UR5eReachEnvCfg(ReachEnvCfg):
             prim_path="{ENV_REGEX_NS}/Robot/base_link",
             debug_vis=True,
             visualizer_cfg=marker_cfg,
+        #     target_frames=[
+        #         FrameTransformerCfg.FrameCfg(
+        #             prim_path="{ENV_REGEX_NS}/Robot/tool0",
+        #             name="end_effector",
+        #             offset=OffsetCfg(
+        #                 pos=[0.0, 0.0, 0.0],
+        #             ),
+        #         ),
+        #     ],
+        # )
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
                     prim_path="{ENV_REGEX_NS}/Robot/robotiq_base_link",

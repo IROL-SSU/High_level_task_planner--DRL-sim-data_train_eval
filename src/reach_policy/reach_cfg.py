@@ -82,7 +82,7 @@ class CommandsCfg:
         resampling_time_range=(5.0, 5.0),
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.6, 0.75),
+            pos_x=(0.5, 0.65),
             pos_y=(-0.2, 0.2),
             pos_z=(0.3, 0.4),
             roll=(0.0, 0.0),
@@ -176,7 +176,7 @@ class CurriculumCfg:
     """Curriculum terms for the MDP."""
 
     action_rate = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.05, "num_steps": 4500}
+        func=mdp.modify_reward_weight, params={"term_name": "action_rate", "weight": -0.1, "num_steps": 4500}
     )
 
     joint_vel = CurrTerm(
