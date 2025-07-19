@@ -82,7 +82,7 @@ class CommandsCfg:
         resampling_time_range=(5.0, 5.0),
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.5, 0.65),
+            pos_x=(0.5, 0.77),
             pos_y=(-0.2, 0.2),
             pos_z=(0.3, 0.4),
             roll=(0.0, 0.0),
@@ -169,7 +169,7 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     # shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=False, params={"threshold": 0.1})
-    # hand_velocity = DoneTerm(func=mdp.joint_veloict_termination, time_out=False, params={"threshold": 0.5})
+    hand_velocity = DoneTerm(func=mdp.joint_velocity_termination, time_out=False, params={"threshold": 0.9})
 
 @configclass
 class CurriculumCfg:
@@ -180,7 +180,7 @@ class CurriculumCfg:
     )
 
     joint_vel = CurrTerm(
-        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.05, "num_steps": 4500}
+        func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.1, "num_steps": 4500}
     )
 
     # joint_acc = CurrTerm(
