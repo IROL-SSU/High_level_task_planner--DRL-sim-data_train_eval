@@ -67,7 +67,7 @@ def align_ee_target(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneE
 
         # print(f"x: {init_rot_mat[..., 0]}, y: {init_rot_mat[..., 1]}, z: {init_rot_mat[..., 2]}")
 
-        align_z = torch.bmm(ee_tcp_x.unsqueeze(1), des_z.unsqueeze(-1)).squeeze(-1).squeeze(-1)
+        align_z = torch.bmm(ee_tcp_z.unsqueeze(1), des_z.unsqueeze(-1)).squeeze(-1).squeeze(-1)
 
         return torch.sign(align_z) * align_z**2
 

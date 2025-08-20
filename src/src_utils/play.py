@@ -63,43 +63,43 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
 )
 
 
-class SocketClient:
-    def __init__(self, host="127.0.0.1", port=9000):
-        self.host = host
-        self.port = port
-        self.header = b"HEAD"
-        self.footer = b"TAIL"
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# class SocketClient:
+#     def __init__(self, host="127.0.0.1", port=9000):
+#         self.host = host
+#         self.port = port
+#         self.header = b"HEAD"
+#         self.footer = b"TAIL"
+#         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    def connect(self):
-        self.client_socket.connect((self.host, self.port))
-        print(f"[Client] Connected to {self.host}:{self.port}")
+#     def connect(self):
+#         self.client_socket.connect((self.host, self.port))
+#         print(f"[Client] Connected to {self.host}:{self.port}")
 
-    def send(self, float_array):
-        if len(float_array) != 12:
-            raise ValueError("Array must be of length 12.")
-        payload = struct.pack("!12f", *float_array)
-        packet = self.header + payload + self.footer
-        self.client_socket.sendall(packet)
-        print(f"[Client] Sent: {float_array}")
+#     def send(self, float_array):
+#         if len(float_array) != 12:
+#             raise ValueError("Array must be of length 12.")
+#         payload = struct.pack("!12f", *float_array)
+#         packet = self.header + payload + self.footer
+#         self.client_socket.sendall(packet)
+#         print(f"[Client] Sent: {float_array}")
 
-    def receive(self):
-        expected_size = 56  # 4 bytes header + 48 bytes payload + 4 bytes footer
-        packet = self.client_socket.recv(expected_size)
-        if packet.startswith(self.header) and packet.endswith(self.footer):
-            payload = packet[4:-4]
-            data = struct.unpack("!12f", payload)
-            # print(f"[Client] Received: {data}")
-            return data
-        else:
-            print("[Client] Invalid packet received.")
-            return None
+#     def receive(self):
+#         expected_size = 56  # 4 bytes header + 48 bytes payload + 4 bytes footer
+#         packet = self.client_socket.recv(expected_size)
+#         if packet.startswith(self.header) and packet.endswith(self.footer):
+#             payload = packet[4:-4]
+#             data = struct.unpack("!12f", payload)
+#             # print(f"[Client] Received: {data}")
+#             return data
+#         else:
+#             print("[Client] Invalid packet received.")
+#             return None
 
 def main():
     """Play with RSL-RL agent."""
     
-    socket_cli = SocketClient(host="220.149.89.166", port=9000)
-    socket_cli.connect()
+    # socket_cli = SocketClient(host="220.149.89.166", port=9000)
+    # socket_cli.connect()
     
     # parse configuration
     env_cfg = parse_env_cfg(
@@ -167,9 +167,9 @@ def main():
             # print(f"action: {actions[:]}")
             # env stepping
             obs, _, _, _ = env.step(actions)
-            data[:6] = obs.cpu().numpy()[:,:6]
-            socket_cli.send(data)
-            socket_cli.receive()
+            # data[:6] = obs.cpu().numpy()[:,:6]
+            # socket_cli.send(data)
+            # socket_cli.receive()
             
         if args_cli.video:
             timestep += 1

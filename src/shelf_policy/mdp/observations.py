@@ -203,7 +203,7 @@ def ee_pos_r(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Ten
 
     ee_quat_b = quat_unique(ee_quat_b) if make_quat_unique else ee_quat
     
-    # print(ee_pos_b)
+    # print(f"ee_pos: {ee_pos_b}")
     return torch.cat((ee_pos_b, ee_quat_b), dim=-1)
 
 def ee_quat(env: ManagerBasedRLEnv, make_quat_unique: bool = True) -> torch.Tensor:

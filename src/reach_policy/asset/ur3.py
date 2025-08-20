@@ -31,7 +31,7 @@ UR3_CFG = ArticulationCfg(
         activate_contact_sensors=False,
     ),
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(-0.1, 0.0, 0.79505),
+        pos=(0.0, 0.0, 0.79505),
         rot=(0.0 ,0.0 ,0.0 ,1.0),
         joint_pos={
             "shoulder_pan_joint": 0.0, # -1.7540559 / -1.6

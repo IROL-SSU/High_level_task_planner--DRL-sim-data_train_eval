@@ -80,10 +80,8 @@ class ee_Align(ManagerTermBase):
         # return 1.0 - torch.tanh(quat_err)
 
         ee_tcp_rot_mat = matrix_from_quat(ee_tcp_quat)
-        init_rot_mat = matrix_from_quat(self._initial_ee_quat[..., 0, :])
         shelf_rot_mat = matrix_from_quat(self._shelf.data.default_root_state[:, 3:7])
         
-        init_ee_y = shelf_rot_mat[..., 1]
         ee_tcp_y = ee_tcp_rot_mat[..., 1]
 
         init_ee_z = shelf_rot_mat[..., 2]
@@ -204,16 +202,13 @@ def homing_reward(env: ManagerBasedRLEnv,
     # obtain the desired and current positions
     des_pos_w = command[:, :3]
     distance = torch.norm((des_pos_w - target_pos_w), dim=-1, p=2)
-    # distance_sub = torch.norm((subgoal_pos[:, :3] - ee_pos_w[..., 0,:3]), dim=-1, p=2)
     joint_pos_error = torch.sum(torch.abs(robot.data.joint_pos[:, : 5] - robot.data.default_joint_pos[:, :5]), dim=1)
     # reward_for_home_pose = torch.exp(-1.2 * distance_sub)
     
     # print(f"joint error: {joint_pos_error}")
     reward_for_home_pose = torch.exp(-0.5 * joint_pos_error)
+    # reward_for_home_pose = torch.exp(-2.0 * joint_pos_error)
     # reward_for_home_pose = 1.0 - torch.tanh(joint_pos_error/2.0)
-
-    # print(f"joint reward: {torch.where(distance < 0.04, reward_for_home_pose, 0)}")
-    # print(distance)
     
     return torch.where(distance < 0.03, reward_for_home_pose, 0)
 

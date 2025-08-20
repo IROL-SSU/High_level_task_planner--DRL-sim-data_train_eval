@@ -82,9 +82,9 @@ class CommandsCfg:
         resampling_time_range=(5.0, 5.0),
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
-            pos_x=(0.5, 0.77),
+            pos_x=(0.3, 0.45),
             pos_y=(-0.2, 0.2),
-            pos_z=(0.3, 0.4),
+            pos_z=(0.2, 0.35),
             roll=(0.0, 0.0),
             pitch=MISSING,  # depends on end-effector axis
             yaw=(0.0, 0.0),
@@ -169,7 +169,7 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
     # shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=False, params={"threshold": 0.1})
-    hand_velocity = DoneTerm(func=mdp.joint_velocity_termination, time_out=False, params={"threshold": 0.9})
+    # hand_velocity = DoneTerm(func=mdp.joint_velocity_termination, time_out=False, params={"threshold": 0.7})
 
 @configclass
 class CurriculumCfg:
