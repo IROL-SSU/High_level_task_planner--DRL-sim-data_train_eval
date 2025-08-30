@@ -13,7 +13,7 @@ Reference: https://github.com/ros-industrial/universal_robot
 """
 
 import omni.isaac.lab.sim as sim_utils
-from omni.isaac.lab.actuators import ImplicitActuatorCfg
+from omni.isaac.lab.actuators import ImplicitActuatorCfg, IdealPDActuatorCfg
 from omni.isaac.lab.assets.articulation import ArticulationCfg
 
 # Configuration
@@ -68,7 +68,7 @@ UR5e_CFG = ArticulationCfg(
         },
     ),
     actuators={
-        "arm": ImplicitActuatorCfg(
+        "arm": IdealPDActuatorCfg(
             joint_names_expr=[
                 "shoulder_pan_joint",
                 "shoulder_lift_joint",
@@ -85,30 +85,9 @@ UR5e_CFG = ArticulationCfg(
                 "wrist_2_joint":6.28,
                 "wrist_3_joint":6.28,
             },
-            effort_limit={
-                "shoulder_pan_joint": 150,
-                "shoulder_lift_joint": 150,
-                "elbow_joint": 150,
-                "wrist_1_joint":28,
-                "wrist_2_joint":28,
-                "wrist_3_joint":28,
-            },
-            stiffness={
-                "shoulder_pan_joint": 600,
-                "shoulder_lift_joint": 1000,
-                "elbow_joint": 1000,
-                "wrist_1_joint":1000,
-                "wrist_2_joint":600,
-                "wrist_3_joint":600,
-            },
-            damping={
-                "shoulder_pan_joint": 40,
-                "shoulder_lift_joint": 100,
-                "elbow_joint": 100,
-                "wrist_1_joint":100,
-                "wrist_2_joint":70,
-                "wrist_3_joint":70,
-            },
+            effort_limit=87.0,
+            stiffness=261,
+            damping=26.1,
         ),
         "gripper": ImplicitActuatorCfg(
             joint_names_expr=["finger_joint","left_outer_finger_joint","left_inner_finger_knuckle_joint","left_inner_finger_joint", "right_outer_knuckle_joint", "right_outer_finger_joint", "right_inner_finger_joint", "right_inner_finger_knuckle_joint"],

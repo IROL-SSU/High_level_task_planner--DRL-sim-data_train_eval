@@ -139,8 +139,5 @@ def hand_velocity_termination(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg 
     return termination
 
 
-def joint_velocity_termination(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), threshold: float=0.5):
-    robot: Articulation = env.scene[asset_cfg.name]
 
-    return torch.any(torch.abs(robot.data.joint_vel[:, asset_cfg.joint_ids]) > threshold, dim=1)
 

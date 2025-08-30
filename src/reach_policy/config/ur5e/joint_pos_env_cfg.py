@@ -155,7 +155,6 @@ class UR5eReachEnvCfg(ReachEnvCfg):
         )
 
         self.rewards.align_ee.params["asset_cfg"].body_names = ["tool0"]
-        self.observations.policy.joint_pos.params["joint_nums"] = 8
         
         self.commands.ee_pose.body_name = "tool0"
         self.commands.ee_pose.ranges.pitch = (math.pi / 2, math.pi / 2)

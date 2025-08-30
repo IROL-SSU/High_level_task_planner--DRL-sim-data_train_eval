@@ -112,8 +112,8 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         # observation terms (order preserved)
-        joint_pos = ObsTerm(func=mdp.MA_joint_pos_rel)
-        joint_vel = ObsTerm(func=mdp.MA_joint_vel_rel)
+        joint_pos = ObsTerm(func=mdp.MA_joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
+        joint_vel = ObsTerm(func=mdp.MA_joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
         target_obs_state = ObsTerm(func=mdp.MA_object_position_in_RRF, params={}, noise = Unoise(n_min=-0.01, n_max=0.01))
         target_obj_width = ObsTerm(func=mdp.MA_object_width, noise = Unoise(n_min=-0.01, n_max=0.01))
@@ -164,13 +164,13 @@ class RewardsCfg:
         params={},
     )
 
-    sweeping_object = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_target, 
-                              params={"command_name": "target_goal_pos"}, 
-                              weight=6.0)
+    # sweeping_object = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_target, 
+    #                           params={"command_name": "target_goal_pos"}, 
+    #                           weight=6.0)
     
     # sweeping_bonus = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_bonus, params={"command_name": "target_goal_pos"}, weight=3.0)
 
-    homing_after_sweep = RewTerm(func=mdp.rewards_sweep_ur5e.homing_reward, params={"command_name": "target_goal_pos"}, weight=12.0)
+    # homing_after_sweep = RewTerm(func=mdp.rewards_sweep_ur5e.homing_reward, params={"command_name": "target_goal_pos"}, weight=12.0)
 
     shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.4)
 
@@ -231,8 +231,8 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
     def __post_init__(self):
         """Post initialization."""
         # general settings
-        self.decimation = 10
-        self.episode_length_s = 11.0 #11.0
+        self.decimation = 2
+        self.episode_length_s = 5.0 #11.0
         self.sim.render_interval = 2
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
