@@ -23,9 +23,9 @@ id:
     can_1: 5
 
 width:
-    bottle_1: 0.05
-    bowl_1: 0.07
-    cup_1: 0.05
-    mug_1: 0.07
-    mug_2: 0.07
-    can_1: 0.05
+    bottle_1: 0.06
+    bowl_1: 0.09
+    cup_1: 0.06
+    mug_1: 0.08
+    mug_2: 0.08
+    can_1: 0.06

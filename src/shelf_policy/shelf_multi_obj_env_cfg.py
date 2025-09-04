@@ -144,7 +144,7 @@ class RewardsCfg:
     """Reward terms for the MDP."""
 
     # action penalty
-    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
+    action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
     joint_vel = RewTerm(
         func=mdp.rewards_sweep_ur5e.joint_vel_l2,
         weight=-0.05,
@@ -164,13 +164,13 @@ class RewardsCfg:
         params={},
     )
 
-    # sweeping_object = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_target, 
-    #                           params={"command_name": "target_goal_pos"}, 
-    #                           weight=6.0)
+    sweeping_object = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_target, 
+                              params={"command_name": "target_goal_pos"}, 
+                              weight=6.0)
     
     # sweeping_bonus = RewTerm(func=mdp.rewards_sweep_ur5e.pushing_bonus, params={"command_name": "target_goal_pos"}, weight=3.0)
 
-    # homing_after_sweep = RewTerm(func=mdp.rewards_sweep_ur5e.homing_reward, params={"command_name": "target_goal_pos"}, weight=12.0)
+    homing_after_sweep = RewTerm(func=mdp.rewards_sweep_ur5e.homing_reward, params={"command_name": "target_goal_pos"}, weight=12.0)
 
     shelf_collision = RewTerm(func=mdp.rewards_sweep_ur5e.shelf_Collision, params={}, weight=-0.4)
 
@@ -186,7 +186,7 @@ class TerminationsCfg:
     object_drop = DoneTerm(func=mdp.drop_object_termination, time_out=False, params={"height_condition":MISSING})
     shelf_collision = DoneTerm(func=mdp.shelf_collision_termination,time_out=False, params={"threshold": 0.1})
     # joint_vel_limit = DoneTerm(func=mdp.joint_velocity_out_of_manual_limit, time_out=False, params={"max_velocity": 0.2})
-    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.3})
+    hand_velocity = DoneTerm(func=mdp.hand_velocity_termination, time_out=False, params={"threshold": 0.5})
     # success_sweep = DoneTerm(func=mdp.success_sweeping, time_out=False, params= {"command_name": "target_goal_pos", "sweeping_threshold": 0.02, "homing_threshold": 0.6})
 
 
@@ -232,7 +232,7 @@ class ShelfEnvCfg(ManagerBasedRLEnvCfg):
         """Post initialization."""
         # general settings
         self.decimation = 2
-        self.episode_length_s = 5.0 #11.0
+        self.episode_length_s = 10.0
         self.sim.render_interval = 2
         # simulation settings
         self.sim.dt = 0.01  # 100Hz
